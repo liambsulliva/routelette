@@ -1,28 +1,31 @@
 <script lang="ts">
   import logo from "./assets/svelte.png";
-  import Counter from "./lib/Counter.svelte";
+  import SpinBtn from "./lib/Button.svelte";
+  import Map from "./lib/Map.svelte";
 </script>
 
 <main class="text-center">
-  <img class="mx-auto" src={logo} alt="Svelte Logo" />
-  <h1 class="p-3 text-lg font-bold">Hello Typescript!</h1>
+  <Map />
 
-  <Counter />
+  <h1 class="p-6 pb-4 text-5xl font-bold">Routelette!</h1>
+  <div>
+    <input class="px-4 py-2 m-4 border rounded w-[300px]" type="text" />
+  </div>
+  <input class="px-4 py-2 m-4 border rounded w-[125px]" type="number">
+  <SpinBtn />
 
-  <p class="p-2 mt-10 text-sm">
-    Visit <a href="https://svelte.dev">svelte.dev</a> to learn how to build Svelte
-    apps.
-  </p>
-
-  <p class="p-2 text-sm text-gray-500">
-    Check out <a href="https://github.com/sveltejs/kit#readme">SvelteKit</a> for
-    the officially supported framework, also powered by Vite!
+  <p class="absolute bottom-4 w-full">
+    Made with ❤️ by <a href="https://liambsullivan.com" target="_blank" rel="noreferrer">Liam Sullivan</a>
   </p>
 </main>
 
 <style>
+    main {
+      margin: 1rem auto;
+      max-width: calc(100vw - 2rem);
+    }
     a {
-        @apply text-blue-700;
+        @apply text-blue-500;
     }
     a:hover {
         @apply underline;
