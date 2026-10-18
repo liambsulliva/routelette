@@ -54,9 +54,9 @@ The name is route plus roulette.
 |---|---|---|
 | Sora (400, 600, 700) | `font/display` | Wordmark, headings, labels, buttons, every number |
 | Instrument Sans (400, 500, italic) | `font/text` | Body text, field values, street and place names, map labels |
-| Geist Mono (500), uppercase | `font/mono` | Unit suffixes (`MI`, `FT`, `MIN`) and coordinates only |
+| Geist Mono (500) | `font/mono` | Unit suffixes and coordinates. Every suffix stays lowercase. |
 
-Sora gives the wide letterforms. Instrument Sans stands in for Strava's body face. All three are free on Google Fonts. Sentence case everywhere except the mono suffixes.
+Sora gives the wide letterforms. Instrument Sans stands in for Strava's body face. All three are free on Google Fonts. Sentence case everywhere. Geist Mono suffixes stay lowercase.
 
 ### 1.3 Icons
 
@@ -81,7 +81,7 @@ Sora gives the wide letterforms. Instrument Sans stands in for Strava's body fac
 | Turns | `arrow-up`, `arrow-up-left`, `arrow-bend-up-left`, `arrow-down-left`, the right-hand equivalents, `arrow-u-down-left`, `flag-checkered` |
 | Error, info | `warning-circle`, `info` |
 
-Units has no icon: the button shows `MI` or `KM` in the mono face.
+Units has no icon. The button shows `mi` or `km` in the mono face.
 
 ### 1.4 Spacing and shape
 
@@ -140,7 +140,7 @@ Before a start is set, show the map and planning controls without a floating pro
 
 ### 4.1 Start
 
-Three ways to set it: type in the search field (Photon results as you type), tap the locate button (asks for location permission at that moment and never before), or click the map. A start that lands far from any usable way snaps to the nearest one, and the panel says so: "Moved 40 ft to the nearest path."
+Three ways to set it: type in the search field (Photon results as you type), tap the locate button (asks for location permission at that moment and never before), or click the map. While location is resolving, only the locate icon spins. Its gray hover fill stays still and stays hidden until the spinner stops. A start that lands far from any usable way snaps to the nearest one, and the panel says so: "Moved 40 ft to the nearest path."
 
 After a start exists, clicking empty map space does nothing unless start placement is active. Clicking the Start label enters that mode. An active Add a stop action takes priority over route selection or joint placement. Otherwise, clicking the selected route adds a joint and clicking another route selects it.
 
@@ -157,7 +157,7 @@ Optional checkpoints the loop must pass through. Up to 5.
 
 The slider covers the mode's usual range in the mode's step. The number above it is the largest thing in the panel.
 
-Tap the number to type a distance (`DistanceBlock`, State=Editing): it becomes a text field with a copper underline and caret, and a hint below ("Type any distance up to 50 mi."). Typed values can go past the slider's range, up to a cap per mode: run 50 mi, walk 30 mi, bike 150 mi. Past the slider's range, the thumb pins to the end of the track. Enter or blur commits; Escape restores the previous value. Values below the mode's minimum clamp to it.
+Tap the number to type a distance (`DistanceBlock`, State=Editing). The number becomes a text field with a copper underline and caret. Typed values can go past the slider's range, up to a cap per mode: run 50 mi, walk 30 mi, bike 150 mi. Past the slider's range, the thumb pins to the end of the track. Enter or blur commits. Escape restores the previous value. Values below the mode's minimum clamp to it. Editing does not add helper text, and the block keeps the same height.
 
 ### 4.4 Units
 
@@ -165,11 +165,11 @@ Miles or kilometers, defaulting from the browser locale. Elevation follows: feet
 
 ### 4.5 Elevation
 
-Gain scales with distance, so presets are rates. The options are a row of five icon tiles. Flat, Hilly and Steep show their total gain range below the row for the current distance. Any has no explainer text below the picker.
+Gain scales with distance, so presets are rates. The options are a row of five icon tiles. A 24 px row under the picker stays in place for every option, so changing a choice does not shift the controls. Any shows "Any: Elevation is not scored". Flat, Hilly and Steep show their total gain range for the current distance.
 
 | Option | Rate | Caption at 5 mi |
 |---|---|---|
-| Any (default) | Not scored | Elevation is not scored |
+| Any (default) | Not scored | Any: Elevation is not scored |
 | Flat | 20 ft/mi or less | Under 100 ft |
 | Hilly | 40 to 80 ft/mi | 200 to 400 ft |
 | Steep | 100 ft/mi or more | 500 ft or more |
@@ -194,9 +194,9 @@ Section 9.2 covers how each one changes the cost.
 
 ### 4.8 Roll
 
-Rolling picks a new random seed and replaces the available routes. There is no history. While generation runs, the button shows a spinner beside its dice icon and label. Use the Strava spinner's visual style and 800 ms rotation. Reduced motion holds the spinner still. Reserve its space so the content does not shift. The dice has no loading animation.
+Rolling picks a new random seed and replaces the available routes. There is no history. While generation runs, a spinner replaces the dice and the Roll label, and the button turns grey. The spinner uses the same 800 ms rotation as the Strava button. Reduced motion holds it still.
 
-Roll borrows the hover from `#dice-button` in the [personal-site DiceIcon.astro](https://github.com/liambsulliva/personal-website-v2/blob/main/src/components/icons/DiceIcon.astro). On button hover, the dice moves 0.25 rem to the left and rotates 90 degrees over 300 ms with CSS ease. It returns over the same duration when hover ends. Move only the icon so the label and spinner stay fixed. Keep Routelette's copper colors, focus ring and existing press/release motion. Reduced motion disables the icon transform.
+The dice and the label sit 4 px apart. On hover, the dice moves 0.25 rem left and rotates 90 degrees over 300 ms with CSS ease. It returns over the same duration when hover ends. The label stays put. Reduced motion disables the icon transform.
 
 Existing results remain visible during generation. Clicking or tapping one cancels the pending generation, restores that result's planning settings and redraws its stored geometry from the start. Hovering does not cancel generation. The UI follows the latest deliberate selection. Cancelled or superseded work cannot replace it later. A generation failure leaves the previous results visible with the error message.
 
@@ -204,14 +204,14 @@ Existing results remain visible during generation. Clicking or tapping one cance
 
 ### 5.1 Route cards
 
-Up to three cards titled Route 1, 2 and 3 float in a row along the bottom of the map. Show only the available routes. Do not add duplicate cards or explain why fewer than three are available. Each shows distance as a big number, plus gain and estimated time, and a save button. Hover or tap a card to select it; one is always selected. The selected card gets a 1.5 px copper outline and copper text. Nothing else changes, so the user infers the rest.
+Up to three cards titled Route 1, 2 and 3 float in a row along the bottom of the map. Show only the available routes. Do not add duplicate cards or explain why fewer than three are available. Each shows distance as a big number, plus gain and estimated time, and a save button. A click or keyboard activation selects a card. Hovering a card, its route line, or its numbered marker fills that card with the same gray as an icon button and lightens that route's line. Hover does not change the selection. The selected card keeps a 1.5 px copper outline and copper text. Saving fills the bookmark glyph and leaves the button background clear.
 
 Clicking a time estimate opens a small inline pace editor beside it. Save the value per mode and update time estimates from that pace. Use an inline editor rather than a popup.
 
 ### 5.2 Route lines
 
 - Selected route: solid `accent`, 5 px.
-- The other two: `muted` at 55%, 3.5 px.
+- The other two: `muted` at 55%, 3.5 px. Hovering their card lightens that line a little. It stays 3.5 px.
 - Each line has a small numbered marker at its farthest point from the start, kept clear of stop markers. Clicking a line selects it.
 
 ### 5.3 Joints
@@ -254,7 +254,7 @@ A one-time import of recent loops from Strava. It doesn't stay connected and doe
 
 **Button.** "IMPORT FROM STRAVA" is a full-width copper button pinned to the bottom of the Saved list (`StravaImportButton`):
 
-- **Default:** "IMPORT FROM" in uppercase Sora SemiBold, followed by the Strava wordmark, both white on copper. The layout follows Strava's Connect button; the colors match Routelette.
+- **Default:** "IMPORT FROM" in uppercase Sora SemiBold, followed by the Strava wordmark. Both use the inverse color on copper, white in light mode and `#16171A` in dark mode. The corner radius is 4 px. The label and wordmark align on their baselines with a 6 px gap. The layout follows Strava's Connect button. The colors match Routelette.
 - **Loading:** a spinner in place of the label. It appears on tap and stays through the Strava sign-in and back, until the import finishes. The spinner turns every 800 ms. With reduced motion on, it holds still.
 - **Done:** a checkmark for 2 s, then back to Default.
 
@@ -397,9 +397,9 @@ Routelette's own:
 | Moment | Motion |
 |---|---|
 | Routes appear | The selected line draws from the start back into it over 300 ms. Then the alternate routes fade in over 200 ms, fully drawn, to 55% opacity. |
-| Selecting a card | Restyles the lines without redraw during ordinary selection. During generation, selection cancels the pending request and redraws the chosen stored route. |
+| Selecting a card | A click selects the route and restyles the lines without redraw. Hover only lightens the line and fills the card gray. During generation, a click cancels the pending request and redraws the chosen stored route. |
 | Reverse | The selected line redraws in its new direction. |
-| Roll | Colocated spinner while generating, stopping as soon as generation ends or is cancelled. Hover moves the dice left 0.25 rem and rotates it 90 degrees over 300 ms. No loading tumble. |
+| Roll | Spinner replaces the dice and label while generating, on a grey button. Hover moves the dice left 0.25 rem and rotates it 90 degrees over 300 ms. No loading tumble. |
 | Camera | Ease-out fit to the results. Short fly when the start changes. |
 | Legend | Drops down from the chip on desktop, rises from it on mobile. |
 
@@ -476,6 +476,3 @@ Use the tooltip behavior in Kingdra's `src/components/ui/IconButton.tsx` for eve
 - Render tooltips outside scrolling containers. Hide on pointer leave, blur, Escape, scroll or activation. Touch-only layouts keep accessible names without hover tooltips.
 - Reflect the current action. Examples include "Switch to kilometers", "Switch to miles", "Pause animations", "Resume animations", "Lock stop order" and "Unlock stop order".
 
-Distance unit labels use lowercase "mi" and "km" throughout the interface. Keep the mono font and tracking, but do not uppercase these abbreviations.
-
-Keep the elevation feedback row at 24 px across every option. Show "Any: Elevation is not scored" for Any. Distance editing does not add helper text or change the block height.

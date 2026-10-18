@@ -18,7 +18,7 @@ const pace = reactive<Record<Mode, number>>({ bike: 5, run: 9.5, walk: 20 })
 const mobile = ref(false), panelHeight = ref(94), placing = ref<'start' | 'stop' | null>(null), locating = ref(false)
 const saved = ref<RouteCandidate[]>([]), savedSelectedId = ref(''), renamingId = ref(''), renameValue = ref(''), toast = ref('')
 const deleted = ref<{ route: RouteCandidate; index: number } | null>(null), hydrated = ref(false)
-const highlighted = ref<Coordinates[]>([]), stravaState = ref<'idle' | 'loading' | 'done'>('idle')
+const highlighted = ref<Coordinates[]>([]), hoveredRouteId = ref(''), stravaState = ref<'idle' | 'loading' | 'done'>('idle')
 const panel = useTemplateRef<HTMLElement>('panel')
 const repository = createSavedRoutes()
 let undoTimer: ReturnType<typeof setTimeout> | undefined, toastTimer: ReturnType<typeof setTimeout> | undefined
@@ -30,7 +30,7 @@ const visibleRoutes = computed(() => tab.value === 'saved' && !shared.value ? (a
 const activeRoute = computed(() => tab.value === 'saved' && !shared.value ? activeSaved.value : selected.value)
 const cardsVisible = computed(() => !shared.value && tab.value === 'plan' && state.routes.length > 0 && !(mobile.value && expanded.value))
 const scene = computed(() => ({
-  routes: visibleRoutes.value, selectedId: activeRoute.value?.id ?? '',
+  routes: visibleRoutes.value, selectedId: activeRoute.value?.id ?? '', hoveredId: hoveredRouteId.value,
   start: tab.value === 'saved' ? activeSaved.value?.settings.start ?? null : state.settings.start,
   stops: tab.value === 'saved' ? [] : state.settings.stops,
   joints: tab.value === 'saved' ? [] : state.settings.joints,
@@ -170,7 +170,7 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
 
 <template>
   <main class="planner-app" :class="{ 'is-mobile': mobile, 'has-start': !!state.settings.start, 'has-cards': cardsVisible, 'sheet-expanded': expanded, 'saved-view': tab === 'saved', 'shared-view': shared }" :style="{ '--sheet-height': `${panelHeight}px` }">
-    <ClientOnly><LazyMapView :scene="scene" :dark="dark" :reduced-motion="reducedMotion" :revision="sceneRevision" :presentation="state.presentation" :mobile="mobile" :panel-height="panelHeight" :cards="cardsVisible" :highlighted="highlighted" @click="mapClick" @select="selectRoute($event, true)" @joint="planner.dropJoint" @longpress="addMapStop" /></ClientOnly>
+    <ClientOnly><LazyMapView :scene="scene" :dark="dark" :reduced-motion="reducedMotion" :revision="sceneRevision" :presentation="state.presentation" :mobile="mobile" :panel-height="panelHeight" :cards="cardsVisible" :highlighted="highlighted" @click="mapClick" @hover="hoveredRouteId = $event" @select="selectRoute($event, true)" @joint="planner.dropJoint" @longpress="addMapStop" /></ClientOnly>
     <div v-if="fixtureMode && !shared" class="preview-badge"><span>Design preview</span><span class="preview-separator">·</span><button type="button" @click="preview('results')">Preview Bloomfield</button></div>
     <div class="mobile-header surface"><AppHeader :theme="theme" :dark="dark" :units="units" :reduced-motion="reducedMotion" @theme="cycleTheme" @units="units = units === 'mi' ? 'km' : 'mi'" @motion="reducedMotion = !reducedMotion" /></div>
     <section ref="panel" class="planner-panel surface" :class="{ expanded: expanded || shared, saved: tab === 'saved' }" aria-label="Route planner">
@@ -200,7 +200,7 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
       </template>
       <AppFooter />
     </section>
-    <div v-if="cardsVisible" class="route-cards" aria-label="Route options"><RouteCard v-for="route in state.routes" :key="route.id" :route="route" :selected="route.id === state.selectedId" :saved="isSaved(route)" :units="units" :pace="pace" @select="selectRoute" @save="saveRoute" @pace="(mode, value) => pace[mode] = value" /></div>
+    <div v-if="cardsVisible" class="route-cards" aria-label="Route options"><RouteCard v-for="route in state.routes" :key="route.id" :route="route" :selected="route.id === state.selectedId" :hovered="route.id === hoveredRouteId" :saved="isSaved(route)" :units="units" :pace="pace" @select="selectRoute" @preview="hoveredRouteId = $event" @save="saveRoute" @pace="(mode, value) => pace[mode] = value" /></div>
     <RouteLegend v-if="activeRoute && !(mobile && expanded && tab === 'plan' && !shared)" :route="activeRoute" :units="units" :open="legendOpen" :mobile="mobile" :pace="pace" @toggle="legendOpen = !legendOpen; if (legendOpen && mobile) expanded = false" @highlight="highlighted = $event" />
     <Transition name="toast"><div v-if="toast" class="toast-message surface" role="status"><Icon name="ph:info" size="20" /><span>{{ toast }}</span><IconButton icon="ph:x" label="Dismiss message" @click="toast = ''" /></div></Transition>
   </main>

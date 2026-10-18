@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { commitDistance, distanceLimits, gainText, METERS_PER_MILE, toDistance } from '../app/domain/units'
+import { commitDistance, distanceLimits, elevationCaption, gainText, METERS_PER_MILE, toDistance } from '../app/domain/units'
 import { previewRoutes } from '../app/services/fixture-planner'
 import { decodeRoute, encodeRoute } from '../app/services/share'
 
@@ -20,6 +20,9 @@ describe('distance entry', () => {
   it('keeps missing elevation distinct from a flat route', () => {
     expect(gainText(null, 'mi')).toBe('Unavailable')
     expect(gainText(0, 'mi')).toBe('0')
+  })
+  it('keeps the Any elevation caption so the picker row does not change height', () => {
+    expect(elevationCaption('any', 5 * METERS_PER_MILE, 'mi')).toBe('Any: Elevation is not scored')
   })
 })
 

@@ -3,9 +3,10 @@ import type { GeoJSONSource, Map as LibreMap, Marker } from 'maplibre-gl'
 import type { FeatureCollection, LineString } from 'geojson'
 import type { Coordinates, Place, RouteCandidate } from '../domain/planner'
 
-export interface MapScene { routes: RouteCandidate[]; selectedId: string; start: Place | null; stops: Place[]; joints: Coordinates[] }
+export interface MapScene { routes: RouteCandidate[]; selectedId: string; hoveredId?: string; start: Place | null; stops: Place[]; joints: Coordinates[] }
 export interface MapEvents {
   click(point: Coordinates, routeId?: string): void
+  hover(routeId: string): void
   select(routeId: string): void
   jointDrop(index: number, point: Coordinates): void
   longPress(point: Coordinates): void
@@ -16,10 +17,11 @@ export interface MapAdapter {
   theme(dark: boolean): void
   fly(point: Coordinates, animate: boolean): void
   highlight(coordinates: Coordinates[]): void
+  emphasize(routeId: string): void
   destroy(): void
 }
 const empty = (): FeatureCollection<LineString> => ({ type: 'FeatureCollection', features: [] })
-const COLORS = { light: { accent: '#c85a17', muted: '#6b6e73' }, dark: { accent: '#e0763a', muted: '#9a9da2' } }
+const COLORS = { light: { accent: '#c85a17', muted: '#6b6e73', hover: '#878a8f' }, dark: { accent: '#e0763a', muted: '#9a9da2', hover: '#b6b9be' } }
 
 function partial(coordinates: Coordinates[], fraction: number): Coordinates[] {
   if (fraction >= 1) return coordinates
@@ -39,10 +41,14 @@ function features(scene: MapScene, progress: number, dark: boolean, deferAlterna
   const palette = dark ? COLORS.dark : COLORS.light
   return {
     type: 'FeatureCollection',
-    features: scene.routes.filter(route => !deferAlternates || progress >= 1 || route.id === scene.selectedId).sort((a, b) => Number(a.id === scene.selectedId) - Number(b.id === scene.selectedId)).map(route => ({
-      type: 'Feature', properties: { id: route.id, selected: route.id === scene.selectedId, color: route.id === scene.selectedId ? palette.accent : palette.muted, opacity: route.id === scene.selectedId ? 1 : 0.55 * alternateOpacity },
-      geometry: { type: 'LineString', coordinates: route.id === scene.selectedId ? partial(route.coordinates, progress) : route.coordinates },
-    })),
+    features: scene.routes.filter(route => !deferAlternates || progress >= 1 || route.id === scene.selectedId).sort((a, b) => Number(a.id === scene.selectedId) - Number(b.id === scene.selectedId)).map(route => {
+      const selected = route.id === scene.selectedId
+      const hovered = !selected && route.id === scene.hoveredId
+      return {
+        type: 'Feature' as const, properties: { id: route.id, selected, color: selected ? palette.accent : hovered ? palette.hover : palette.muted, opacity: selected ? 1 : (hovered ? 0.8 : 0.55) * alternateOpacity },
+        geometry: { type: 'LineString' as const, coordinates: selected ? partial(route.coordinates, progress) : route.coordinates },
+      }
+    }),
   }
 }
 
@@ -65,7 +71,11 @@ export function createMapAdapter(container: HTMLElement, events: MapEvents, dark
     if (!map.getSource('highlight')) map.addSource('highlight', { type: 'geojson', data: empty() })
     if (!map.getLayer('turn-highlight')) map.addLayer({ id: 'turn-highlight', type: 'line', source: 'highlight', layout: { 'line-cap': 'round' }, paint: { 'line-color': isDark ? '#f2f1ef' : '#1f2124', 'line-width': 8, 'line-opacity': 0.7 } })
   }
-  function setLines(progress: number, alternateOpacity = 1) { (map.getSource('routes') as GeoJSONSource | undefined)?.setData(features(scene, progress, isDark, options.deferAlternates, alternateOpacity)) }
+  let drawnProgress = 1, drawnFade = 1
+  function setLines(progress: number, alternateOpacity = 1) {
+    drawnProgress = progress; drawnFade = alternateOpacity
+    ;(map.getSource('routes') as GeoJSONSource | undefined)?.setData(features(scene, progress, isDark, options.deferAlternates, alternateOpacity))
+  }
   function markerElement(className: string, text = '') { const element = document.createElement('div'); element.className = className; element.textContent = text; return element }
   function drawMarkers(includeRouteNumbers = true) {
     markers.forEach(marker => marker.remove()); markers = []
@@ -85,6 +95,8 @@ export function createMapAdapter(container: HTMLElement, events: MapEvents, dark
       }, route.coordinates[0]!)
       const element = markerElement(`map-marker route${route.id === scene.selectedId ? ' selected' : ''}`, String(index + 1))
       element.setAttribute('role', 'button'); element.setAttribute('tabindex', '0'); element.setAttribute('aria-label', `Select ${route.name}`)
+      element.addEventListener('mouseenter', () => hoverRoute(route.id))
+      element.addEventListener('mouseleave', () => hoverRoute(''))
       element.addEventListener('click', event => { event.stopPropagation(); events.select(route.id) })
       element.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); events.select(route.id) } })
       markers.push(new maplibregl.Marker({ element }).setLngLat(farthest).addTo(map))
@@ -130,12 +142,25 @@ export function createMapAdapter(container: HTMLElement, events: MapEvents, dark
   map.on('style.load', () => { if (loaded) { ensureSources(); setLines(1); drawMarkers() } })
   map.on('error', () => { if (!loaded) failed() })
   let suppressClickUntil = 0
+  let hoveredRoute = ''
+  function hoverRoute(id: string) {
+    if (id === hoveredRoute) return
+    hoveredRoute = id
+    events.hover(id)
+    map.getCanvas().style.cursor = id ? 'pointer' : ''
+  }
+  function routeAt(point: maplibregl.Point) {
+    if (!loaded || !map.getLayer('route-lines')) return ''
+    const box: [maplibregl.PointLike, maplibregl.PointLike] = [[point.x - 8, point.y - 8], [point.x + 8, point.y + 8]]
+    const hit = map.queryRenderedFeatures(box, { layers: ['route-lines'] }).find(feature => typeof feature.properties.id === 'string')
+    return typeof hit?.properties.id === 'string' ? hit.properties.id : ''
+  }
   map.on('click', event => {
     if (performance.now() < suppressClickUntil) return
-    const box: [maplibregl.PointLike, maplibregl.PointLike] = [[event.point.x - 8, event.point.y - 8], [event.point.x + 8, event.point.y + 8]]
-    const hit = loaded && map.getLayer('route-lines') ? map.queryRenderedFeatures(box, { layers: ['route-lines'] }).find(feature => typeof feature.properties.id === 'string') : null
-    events.click([event.lngLat.lng, event.lngLat.lat], hit?.properties.id)
+    events.click([event.lngLat.lng, event.lngLat.lat], routeAt(event.point))
   })
+  map.on('mousemove', event => hoverRoute(routeAt(event.point)))
+  map.on('mouseout', () => hoverRoute(''))
   map.on('dragstart', () => { if (fitting) map.stop() })
   let longPress: ReturnType<typeof setTimeout> | undefined
   map.on('touchstart', event => { if (event.lngLats.length === 1) longPress = setTimeout(() => { const p = event.lngLats[0]; if (p) { suppressClickUntil = performance.now() + 1000; events.longPress([p.lng, p.lat]) } }, 600) })
@@ -145,6 +170,7 @@ export function createMapAdapter(container: HTMLElement, events: MapEvents, dark
     theme(nextDark) { if (nextDark === isDark) return; isDark = nextDark; map.setStyle(`https://tiles.openfreemap.org/styles/${isDark ? 'dark' : 'positron'}`) },
     fly(point, animate) { if (loaded) map.flyTo({ center: point, zoom: 14.5, duration: animate ? 450 : 0, padding: { left: options.mobile ? 0 : 360, right: 0, top: 0, bottom: options.mobile ? options.panelHeight : 0 } }) },
     highlight(coordinates) { if (!loaded) return; (map.getSource('highlight') as GeoJSONSource | undefined)?.setData(coordinates.length > 1 ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } }] } : empty()) },
+    emphasize(routeId) { scene = { ...scene, hoveredId: routeId }; if (loaded && map.getSource('routes')) setLines(drawnProgress, drawnFade) },
     destroy() { destroyed = true; ++cameraVersion; cancelAnimationFrame(frame); clearTimeout(longPress); markers.forEach(marker => marker.remove()); map.remove() },
   }
 }

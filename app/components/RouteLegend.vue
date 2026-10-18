@@ -18,7 +18,7 @@ const profile = computed(() => {
     <Transition name="legend"><div v-if="open" id="route-directions" class="legend-dropdown surface">
       <svg v-if="profile" class="elevation-profile" viewBox="0 0 288 60" role="img" aria-label="Recorded elevation profile"><polygon :points="`0,60 ${profile} 288,60`" fill="var(--hover)" /><polyline :points="profile" fill="none" stroke="var(--fg)" stroke-width="1.5" /></svg>
       <p v-else class="legend-unavailable">Elevation profile unavailable</p>
-      <ol v-if="route.turns.length" class="turn-list"><li v-for="turn in route.turns" :key="turn.id" @mouseenter="$emit('highlight', turn.coordinates)" @mouseleave="$emit('highlight', [])"><Icon :name="directions[turn.instruction] ?? 'ph:arrow-up'" size="20" /><span>{{ turn.street || 'Path' }}</span><strong>{{ distanceText(turn.distanceMeters, units) }} <span class="unit">{{ units }}</span></strong></li></ol>
+      <ol v-if="route.turns.length" class="turn-list"><li v-for="turn in route.turns" :key="turn.id" @mouseenter="$emit('highlight', turn.coordinates)" @mouseleave="$emit('highlight', [])"><Icon :name="directions[turn.instruction] ?? 'ph:arrow-up'" size="20" /><span>{{ turn.street || 'Path' }}</span><strong>{{ distanceText(turn.distanceMeters, units) }} <span class="unit distance-unit">{{ units }}</span></strong></li></ol>
       <p v-else class="legend-unavailable">Turn directions unavailable in this preview.</p>
     </div></Transition>
   </aside>
