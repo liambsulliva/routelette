@@ -2,3 +2,11 @@
 /dist/
 /.vscode/
 .DS_Store
+
+/.nuxt/
+/.output/
+/.data/
+/coverage/
+/.env
+/.env.*
+!/.env.example

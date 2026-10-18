@@ -1,0 +1,14 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Wheel">
+<path id="Vector" d="M29.25 16C29.25 23.3178 23.3178 29.25 16 29.25C8.68223 29.25 2.75 23.3178 2.75 16C2.75 8.68223 8.68223 2.75 16 2.75C23.3178 2.75 29.25 8.68223 29.25 16Z" stroke-width="2.5" stroke="#C85A17"/>
+<path id="Vector_2" d="M22.75 16H29" stroke-width="1.75" stroke-linecap="round" stroke="#C85A17"/>
+<path id="Vector_3" d="M20.77 20.77L25.19 25.19" stroke-width="1.75" stroke-linecap="round" stroke="#C85A17"/>
+<path id="Vector_4" d="M16 22.75V29" stroke-width="1.75" stroke-linecap="round" stroke="#C85A17"/>
+<path id="Vector_5" d="M11.23 20.77L6.81 25.19" stroke-width="1.75" stroke-linecap="round" stroke="#C85A17"/>
+<path id="Vector_6" d="M9.25 16H3" stroke-width="1.75" stroke-linecap="round" stroke="#C85A17"/>
+<path id="Vector_7" d="M11.23 11.23L6.81 6.81" stroke-width="1.75" stroke-linecap="round" stroke="#C85A17"/>
+<path id="Vector_8" d="M16 9.25V3" stroke-width="1.75" stroke-linecap="round" stroke="#C85A17"/>
+<path id="Vector_9" d="M20.77 11.23L25.19 6.81" stroke-width="1.75" stroke-linecap="round" stroke="#C85A17"/>
+<path id="Vector_10" d="M16 20.25C18.3472 20.25 20.25 18.3472 20.25 16C20.25 13.6528 18.3472 11.75 16 11.75C13.6528 11.75 11.75 13.6528 11.75 16C11.75 18.3472 13.6528 20.25 16 20.25Z" fill="#1F2124"/>
+</g>
+</svg>

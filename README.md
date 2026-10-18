@@ -1,44 +1,36 @@
-# Svelte + TS + Vite
+# Routelette
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+A Vue route planner built with Nuxt 4, TypeScript, Tailwind 4 and MapLibre. The design is in [Figma](https://www.figma.com/design/AQ4efreQvchgfyRpFU7i2H). Product behavior is in [docs/spec.md](docs/spec.md).
 
-## Recommended IDE Setup
+## Run locally
 
-[VSCode](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+Use Node.js 24 and npm.
 
-## Need an official Svelte framework?
-
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
-
-## Technical considerations
-
-**Why use this over SvelteKit?**
-
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
-  `vite dev` and `vite build` wouldn't work in a SvelteKit environment, for example.
-
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
-
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
-
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why enable `allowJs` in the TS template?**
-
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```sh
+npm install
+npm run dev
 ```
+
+Open `http://127.0.0.1:3000`. The Preview Bloomfield button loads the recorded routes used in Figma. You can also open `/?preview=results&theme=light`, `/?preview=results&theme=dark&expanded=1`, or `/?preview=saved`.
+
+```sh
+npm run check
+npm run build
+npm run preview
+```
+
+## Current stage
+
+The first stage implements the interface, a live map, place search, route presentation, local saving and route links. Route generation uses the recorded Bloomfield fixtures in `app/data`. These fixtures show the design and exercise cancellation. They do not apply distance, surface, elevation or access costs to calculate new routes. Reversal and joint editing report that routing snapshots are required. Strava import is not connected yet.
+
+The default preview mode is explicit in the interface. Set `NUXT_PUBLIC_FIXTURE_MODE=false` to disable recorded generation.
+
+## Routing integration
+
+`app/domain/planner.ts` defines the route model and `PlanningService`. The controller gives each request an identity and abort signal, retains existing results while work runs, and rejects stale results. A deliberate selection during generation restores the selected route's stored settings and geometry.
+
+`app/map/adapter.ts` draws routes independently of the planner. After the camera settles, the main line draws for 300 ms. Alternate lines then fade in for 200 ms. Reduced motion shows the completed scene.
+
+The next stage will implement `PlanningService` in a browser worker using versioned OSM graph snapshots for Pittsburgh and DC Metro. `app/services/graph-provider.ts` defines the static manifest and tile loading interface. Snapshots must preserve mode access, direction and turn restrictions. Live traffic and construction feeds are outside scope.
+
+The proposed free deployment uses Vercel for Nuxt and static graph files on Cloudflare Pages. This checkout has not been deployed. No commits or pushes run automatically.
