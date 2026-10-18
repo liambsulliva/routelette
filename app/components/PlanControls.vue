@@ -52,11 +52,18 @@ function keyboard(event: KeyboardEvent) {
 }
 function removeStop(id: string) { emit('change', { stops: props.settings.stops.filter(stop => stop.id !== id) }) }
 let draggedStop = -1
+function startDrag(event: DragEvent, index: number) {
+  draggedStop = index
+  event.dataTransfer?.setData('text/plain', String(index))
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+}
+function allowDrop(event: DragEvent) { if (event.dataTransfer) event.dataTransfer.dropEffect = 'move' }
 function dropStop(index: number) {
-  if (!props.settings.orderLocked || draggedStop < 0 || draggedStop === index) return
-  const stops = [...props.settings.stops]; const [stop] = stops.splice(draggedStop, 1)
-  if (stop) { stops.splice(index, 0, stop); emit('change', { stops }) }
+  if (draggedStop < 0 || draggedStop === index) { draggedStop = -1; return }
+  const stops = [...props.settings.stops]
+  const [stop] = stops.splice(draggedStop, 1)
   draggedStop = -1
+  if (stop) emit('change', { stops, orderLocked: true })
 }
 function chooseElevation(value: ElevationChoice) {
   emit('change', { elevation: value, ...(value === 'custom' ? { customGainMeters: props.settings.customGainMeters ?? 100 } : {}) })
@@ -86,7 +93,7 @@ onBeforeUnmount(() => { clearTimeout(timer); searchRequest?.abort() })
     </section>
     <section v-if="settings.start" class="control-section stops-section">
       <div class="section-heading"><h2 class="section-label">Stops</h2><IconButton v-if="settings.stops.length" :icon="settings.orderLocked ? 'ph:lock-simple' : 'ph:lock-simple-open'" :label="settings.orderLocked ? 'Unlock stop order' : 'Lock stop order'" :active="settings.orderLocked" class="small-icon" @click="emit('change', { orderLocked: !settings.orderLocked })" /></div>
-      <div v-for="(stop, index) in settings.stops" :key="stop.id" class="stop-row" :draggable="settings.orderLocked" @dragstart="draggedStop = index" @dragover.prevent @drop.prevent="dropStop(index)"><Icon name="ph:dots-six-vertical" size="16" /><span class="stop-index">{{ index + 1 }}</span><span class="stop-name">{{ stop.label }}</span><IconButton icon="ph:minus-circle" :label="`Remove ${stop.label}`" @click="removeStop(stop.id)" /></div>
+      <div v-for="(stop, index) in settings.stops" :key="stop.id" class="stop-row" :draggable="settings.stops.length > 1" @dragstart="startDrag($event, index)" @dragover.prevent="allowDrop" @drop.prevent="dropStop(index)"><Icon name="ph:dots-six-vertical" size="16" /><span class="stop-index">{{ index + 1 }}</span><span class="stop-name">{{ stop.label }}</span><IconButton icon="ph:minus-circle" :label="`Remove ${stop.label}`" draggable="false" @dragstart.stop.prevent @click="removeStop(stop.id)" /></div>
       <button v-if="settings.stops.length < 5" type="button" class="add-stop" @click="addStop"><Icon name="ph:plus" size="20" />Add a stop</button>
     </section>
     <DistanceField :meters="settings.distanceMeters" :mode="settings.mode" :units="units" @change="emit('change', { distanceMeters: $event })" />

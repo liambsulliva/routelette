@@ -22,7 +22,7 @@ export default defineNuxtConfig({
     photonUrl: 'https://photon.komoot.io',
     stravaClientId: '',
     stravaClientSecret: '',
-    public: { graphManifestUrl: '', fixtureMode: true },
+    public: { graphManifestUrl: '/graph/manifest.json', fixtureMode: false },
   },
   typescript: { strict: true },
 })

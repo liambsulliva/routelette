@@ -9,6 +9,7 @@ export interface MapEvents {
   hover(routeId: string): void
   select(routeId: string): void
   jointDrop(index: number, point: Coordinates): void
+  stopDrop(index: number, point: Coordinates): void
   longPress(point: Coordinates): void
 }
 export interface Presentation { animate: boolean; fit: boolean; reveal: boolean; deferAlternates: boolean; mobile: boolean; panelHeight: number; cards: boolean }
@@ -80,7 +81,12 @@ export function createMapAdapter(container: HTMLElement, events: MapEvents, dark
   function drawMarkers(includeRouteNumbers = true) {
     markers.forEach(marker => marker.remove()); markers = []
     if (scene.start) markers.push(new maplibregl.Marker({ element: markerElement('map-marker start') }).setLngLat(scene.start.coordinates).addTo(map))
-    scene.stops.forEach((stop, index) => markers.push(new maplibregl.Marker({ element: markerElement('map-marker stop', String(index + 1)) }).setLngLat(stop.coordinates).addTo(map)))
+    scene.stops.forEach((stop, index) => {
+      const marker = new maplibregl.Marker({ element: markerElement('map-marker stop', String(index + 1)), draggable: true }).setLngLat(stop.coordinates).addTo(map)
+      marker.on('dragstart', () => { suppressClickUntil = performance.now() + 800 })
+      marker.on('dragend', () => { const point = marker.getLngLat(); suppressClickUntil = performance.now() + 400; events.stopDrop(index, [point.lng, point.lat]) })
+      markers.push(marker)
+    })
     scene.joints.forEach((point, index) => {
       const marker = new maplibregl.Marker({ element: markerElement('map-marker joint'), draggable: true }).setLngLat(point).addTo(map)
       marker.on('dragend', () => { const point = marker.getLngLat(); events.jointDrop(index, [point.lng, point.lat]) })

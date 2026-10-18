@@ -6,10 +6,11 @@ import { distanceText, gainText, minutesFor, toDistance, METERS_PER_MILE } from 
 import { createFixturePlanner, createUnavailablePlanner, PREVIEW_START, PREVIEW_STOP, previewRoutes, previewSavedRoutes } from './services/fixture-planner'
 import { createSavedRoutes } from './services/saved-routes'
 import { encodeRoute, decodeRoute } from './services/share'
+import { createWorkerPlanner } from './services/worker-planner'
 
 const config = useRuntimeConfig()
 const fixtureMode = config.public.fixtureMode === true || String(config.public.fixtureMode) === 'true'
-const planner = createPlanner(fixtureMode ? createFixturePlanner() : createUnavailablePlanner())
+const planner = createPlanner(fixtureMode ? createFixturePlanner() : config.public.graphManifestUrl ? createWorkerPlanner(String(config.public.graphManifestUrl)) : createUnavailablePlanner())
 const { state, selected } = planner
 const tab = ref<'plan' | 'saved'>('plan'), shared = ref(false), expanded = ref(false), legendOpen = ref(false)
 const theme = ref<'light' | 'dark' | 'system'>('system'), systemDark = ref(false), units = ref<Units>('mi'), reducedMotion = ref(false)
@@ -20,6 +21,9 @@ const saved = ref<RouteCandidate[]>([]), savedSelectedId = ref(''), renamingId =
 const deleted = ref<{ route: RouteCandidate; index: number } | null>(null), hydrated = ref(false)
 const highlighted = ref<Coordinates[]>([]), hoveredRouteId = ref(''), stravaState = ref<'idle' | 'loading' | 'done'>('idle')
 const panel = useTemplateRef<HTMLElement>('panel')
+const tabsEl = useTemplateRef<HTMLElement>('tabs')
+const indicator = ref({ x: 0, width: 0 })
+const indicatorReady = ref(false)
 const repository = createSavedRoutes()
 let undoTimer: ReturnType<typeof setTimeout> | undefined, toastTimer: ReturnType<typeof setTimeout> | undefined
 let resizeObserver: ResizeObserver | undefined
@@ -38,9 +42,22 @@ const scene = computed(() => ({
 const sceneRevision = computed(() => state.revision + (tab.value === 'saved' ? saved.value.length + saved.value.findIndex(r => r.id === savedSelectedId.value) + 1000 : 0))
 function showToast(message: string) { toast.value = message; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toast.value = '' }, 5000) }
 watch(() => state.toast, message => { if (message) { showToast(message); state.toast = '' } })
+const noticeText = computed(() => state.notices.map(notice => {
+  const distance = `${distanceText(notice.meters, units.value)} ${units.value}`
+  if (notice.code === 'start-moved') return units.value === 'mi' ? `Moved ${Math.round(notice.meters / 0.3048 / 10) * 10} ft to the nearest path.` : `Moved ${Math.round(notice.meters / 5) * 5} m to the nearest path.`
+  if (notice.code === 'stops-over-budget') return `Your stops need at least ${distance}.`
+  return `No loops near ${distanceText(state.settings.distanceMeters, units.value)} ${units.value} from here. Closest is ${distance}.`
+}).join(' '))
+const stopsOverBudget = computed(() => state.notices.some(notice => notice.code === 'stops-over-budget'))
 function cycleTheme() { theme.value = theme.value === 'system' ? 'light' : theme.value === 'light' ? 'dark' : 'system' }
 async function change(patch: Partial<PlanningSettings>) { if (patch.start) ++startSelectionVersion; placing.value = null; await planner.change(patch) }
 function toggleExpanded() { expanded.value = !expanded.value; if (expanded.value) legendOpen.value = false }
+function placeIndicator() {
+  const button = tabsEl.value?.querySelector<HTMLButtonElement>(`[data-tab="${tab.value}"]`)
+  if (!button) return
+  indicator.value = { x: button.offsetLeft, width: button.offsetWidth }
+  indicatorReady.value = true
+}
 function switchTab(next: 'plan' | 'saved') {
   planner.cancel(); tab.value = next; state.revision++; legendOpen.value = false
   if (next === 'saved') { savedSelectedId.value ||= saved.value[0]?.id ?? ''; expanded.value = true }
@@ -66,6 +83,18 @@ async function mapClick(point: Coordinates, routeId?: string) {
   if (routeId && state.settings.joints.length < 10) {
     state.settings.joints = [...state.settings.joints, point]; state.presentation = 'selection'; state.revision++
   }
+}
+async function moveStop(index: number, point: Coordinates) {
+  const stop = state.settings.stops[index]
+  if (!stop) return
+  const stops = state.settings.stops.map((item, itemIndex) => itemIndex === index ? { ...item, coordinates: point } : { ...item, coordinates: [...item.coordinates] as Coordinates })
+  const moved = change({ stops, orderLocked: true })
+  try {
+    const names = await $fetch<Place[]>('/api/search', { query: { reverse: 1, lon: point[0], lat: point[1] } })
+    const current = state.settings.stops[index]
+    if (names[0] && current && current.coordinates[0] === point[0] && current.coordinates[1] === point[1]) current.label = names[0].label
+  } catch { /* The previous name stays when reverse lookup is unavailable. */ }
+  await moved
 }
 async function addMapStop(point: Coordinates) {
   if (!state.settings.start || state.settings.stops.length >= 5) return
@@ -154,8 +183,10 @@ onMounted(async () => {
   }
   hydrated.value = true
   await nextTick()
-  if (panel.value) { resizeObserver = new ResizeObserver(entries => { if (entries[0]) panelHeight.value = entries[0].contentRect.height + 32 }); resizeObserver.observe(panel.value) }
+  placeIndicator()
+  if (panel.value) { resizeObserver = new ResizeObserver(entries => { if (entries[0]) panelHeight.value = entries[0].contentRect.height + 32; placeIndicator() }); resizeObserver.observe(panel.value) }
 })
+watch([tab, mobile, expanded], () => nextTick(placeIndicator))
 watch([dark, reducedMotion], () => {
   if (!import.meta.client) return
   document.documentElement.dataset.theme = dark.value ? 'dark' : 'light'
@@ -170,7 +201,7 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
 
 <template>
   <main class="planner-app" :class="{ 'is-mobile': mobile, 'has-start': !!state.settings.start, 'has-cards': cardsVisible, 'sheet-expanded': expanded, 'saved-view': tab === 'saved', 'shared-view': shared }" :style="{ '--sheet-height': `${panelHeight}px` }">
-    <ClientOnly><LazyMapView :scene="scene" :dark="dark" :reduced-motion="reducedMotion" :revision="sceneRevision" :presentation="state.presentation" :mobile="mobile" :panel-height="panelHeight" :cards="cardsVisible" :highlighted="highlighted" @click="mapClick" @hover="hoveredRouteId = $event" @select="selectRoute($event, true)" @joint="planner.dropJoint" @longpress="addMapStop" /></ClientOnly>
+    <ClientOnly><LazyMapView :scene="scene" :dark="dark" :reduced-motion="reducedMotion" :revision="sceneRevision" :presentation="state.presentation" :mobile="mobile" :panel-height="panelHeight" :cards="cardsVisible" :highlighted="highlighted" @click="mapClick" @hover="hoveredRouteId = $event" @select="selectRoute($event, true)" @joint="planner.dropJoint" @stop="moveStop" @longpress="addMapStop" /></ClientOnly>
     <div v-if="fixtureMode && !shared" class="preview-badge"><span>Design preview</span><span class="preview-separator">·</span><button type="button" @click="preview('results')">Preview Bloomfield</button></div>
     <div class="mobile-header surface"><AppHeader :theme="theme" :dark="dark" :units="units" :reduced-motion="reducedMotion" @theme="cycleTheme" @units="units = units === 'mi' ? 'km' : 'mi'" @motion="reducedMotion = !reducedMotion" /></div>
     <section ref="panel" class="planner-panel surface" :class="{ expanded: expanded || shared, saved: tab === 'saved' }" aria-label="Route planner">
@@ -180,11 +211,12 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
         <div class="shared-content"><p class="section-label">Shared route</p><h1>{{ activeRoute.name }}</h1><p class="shared-mode"><Icon :name="MODE_ICONS[activeRoute.mode]" size="20" />{{ activeRoute.mode === 'bike' ? 'Bike' : activeRoute.mode === 'walk' ? 'Walk' : 'Run' }} · {{ activeRoute.provenance.region }}</p><div class="shared-stats"><div><strong>{{ distanceText(activeRoute.distanceMeters, units) }}<span class="unit distance-unit">{{ units }}</span></strong><span>Distance</span></div><div><strong>{{ gainText(activeRoute.gainMeters, units) }}<span class="unit">{{ units === 'mi' ? 'ft' : 'm' }}</span></strong><span>Gain</span></div><div><strong>{{ minutesFor(activeRoute.distanceMeters, activeRoute.mode, pace) }}<span class="unit">min</span></strong><span>Time</span></div></div><p>A loop from {{ activeRoute.settings.start?.label }}. Open it in Routelette to roll your own from here.</p><div class="shared-actions"><RollButton label="Plan your own" @click="planOwn" /><div class="outline-actions"><button type="button" @click="shareRoute(activeRoute, true)"><Icon name="ph:export" size="20" />Copy link</button><button type="button" @click="reverseRoute"><Icon name="ph:arrows-counter-clockwise" size="20" />Reverse</button></div></div></div>
       </template>
       <template v-else>
-        <nav class="panel-tabs" aria-label="Planner views"><button type="button" :class="{ active: tab === 'plan' }" :aria-current="tab === 'plan' ? 'page' : undefined" @click="switchTab('plan')"><Icon name="ph:map-trifold" size="20" />Plan</button><button type="button" :class="{ active: tab === 'saved' }" :aria-current="tab === 'saved' ? 'page' : undefined" @click="switchTab('saved')"><Icon name="ph:bookmark-simple" size="20" />Saved</button></nav>
+        <nav ref="tabs" class="panel-tabs" aria-label="Planner views"><button type="button" data-tab="plan" :class="{ active: tab === 'plan' }" :aria-current="tab === 'plan' ? 'page' : undefined" @click="switchTab('plan')"><Icon name="ph:map-trifold" size="20" /><span>Plan</span></button><button type="button" data-tab="saved" :class="{ active: tab === 'saved' }" :aria-current="tab === 'saved' ? 'page' : undefined" @click="switchTab('saved')"><Icon name="ph:bookmark-simple" size="20" /><span>Saved</span></button><span class="tab-indicator" :class="{ ready: indicatorReady }" :style="{ transform: `translateX(${indicator.x}px)`, width: `${indicator.width}px` }" /></nav>
         <template v-if="tab === 'plan'">
           <div class="plan-scroll"><PlanControls :settings="state.settings" :units="units" :elevation-available="state.elevationAvailable" :placing="placing" :locating="locating" @change="change" @placement="placing = $event" @locate="locate" /></div>
           <div v-if="state.error" class="error-line" role="status"><Icon name="ph:warning-circle" size="20" /><span>{{ state.error }}</span><button v-if="!fixtureMode" type="button" @click="planner.run()">Retry</button></div>
-          <div class="roll-action"><button type="button" class="mobile-summary" aria-label="Expand route settings" @click="toggleExpanded"><span class="summary-mode"><Icon :name="MODE_ICONS[state.settings.mode]" size="20" /></span><span class="summary-distance">{{ distanceText(state.settings.distanceMeters, units) }}<span class="unit distance-unit">{{ units }}</span></span></button><RollButton :busy="state.busy" :disabled="!state.settings.start" @click="planner.roll()" /></div>
+          <div v-if="noticeText && !state.error" class="error-line notice-line" role="status"><Icon name="ph:info" size="20" /><span>{{ noticeText }}</span></div>
+          <div class="roll-action"><button type="button" class="mobile-summary" aria-label="Expand route settings" @click="toggleExpanded"><span class="summary-mode"><Icon :name="MODE_ICONS[state.settings.mode]" size="20" /></span><span class="summary-distance">{{ distanceText(state.settings.distanceMeters, units) }}<span class="unit distance-unit">{{ units }}</span></span></button><RollButton :busy="state.busy" :disabled="!state.settings.start || stopsOverBudget" @click="planner.roll()" /></div>
         </template>
         <template v-else>
           <div class="saved-content"><div class="saved-heading"><p>{{ saved.length }} saved {{ saved.length === 1 ? 'route' : 'routes' }}</p><p>Saved on this device only.</p></div><p v-if="!saved.length" class="empty-saved">Saved routes will appear here.</p>

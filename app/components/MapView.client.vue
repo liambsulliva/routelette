@@ -3,7 +3,7 @@ import { createMapAdapter } from '../map/adapter'
 import type { MapAdapter, MapScene } from '../map/adapter'
 import type { Coordinates } from '../domain/planner'
 const props = defineProps<{ scene: MapScene; dark: boolean; reducedMotion: boolean; revision: number; presentation: string; mobile: boolean; panelHeight: number; cards: boolean; highlighted: Coordinates[] }>()
-const emit = defineEmits<{ click: [point: Coordinates, routeId?: string]; hover: [id: string]; select: [id: string]; joint: [index: number, point: Coordinates]; longpress: [point: Coordinates] }>()
+const emit = defineEmits<{ click: [point: Coordinates, routeId?: string]; hover: [id: string]; select: [id: string]; joint: [index: number, point: Coordinates]; stop: [index: number, point: Coordinates]; longpress: [point: Coordinates] }>()
 const container = useTemplateRef<HTMLElement>('container')
 const loading = ref(true), failed = ref(false)
 let adapter: MapAdapter | null = null
@@ -13,7 +13,7 @@ function render(reveal = true) {
 onMounted(() => {
   if (!container.value) return
   try {
-    adapter = createMapAdapter(container.value, { click: (point, id) => emit('click', point, id), hover: id => emit('hover', id), select: id => emit('select', id), jointDrop: (index, point) => emit('joint', index, point), longPress: point => emit('longpress', point) }, props.dark, () => { loading.value = false; failed.value = false }, () => { failed.value = true; loading.value = false })
+    adapter = createMapAdapter(container.value, { click: (point, id) => emit('click', point, id), hover: id => emit('hover', id), select: id => emit('select', id), jointDrop: (index, point) => emit('joint', index, point), stopDrop: (index, point) => emit('stop', index, point), longPress: point => emit('longpress', point) }, props.dark, () => { loading.value = false; failed.value = false }, () => { failed.value = true; loading.value = false })
     render()
   } catch { loading.value = false; failed.value = true }
 })

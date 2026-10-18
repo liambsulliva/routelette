@@ -1,12 +1,12 @@
 import { computed, reactive } from 'vue'
 import { copySettings, initialSettings, PlanningFailure } from './planner'
-import type { PlanningService, PlanningSettings, RouteCandidate, PlanningRequest } from './planner'
+import type { PlanningNotice, PlanningService, PlanningSettings, RouteCandidate, PlanningRequest } from './planner'
 
 export function createPlanner(service: PlanningService, settings = initialSettings()) {
   const state = reactive({
     settings, routes: [] as RouteCandidate[], selectedId: '', busy: false, error: '',
     elevationAvailable: true, revision: 0, presentation: 'selection' as 'generate' | 'selection' | 'restore' | 'reverse' | 'reshape',
-    toast: '',
+    toast: '', notices: [] as PlanningNotice[],
   })
   let sequence = 0
   let active: AbortController | null = null
@@ -35,6 +35,7 @@ export function createPlanner(service: PlanningService, settings = initialSettin
         state.selectedId = result.routes[0]?.id ?? ''
       }
       state.elevationAvailable = result.elevationAvailable
+      state.notices = result.notices ?? []
       state.presentation = operation
       state.revision++
       if (result.adjustedForLegality) state.toast = 'Route adjusted to follow road rules.'
@@ -68,7 +69,7 @@ export function createPlanner(service: PlanningService, settings = initialSettin
   function load(routes: RouteCandidate[], reason: 'selection' | 'restore' = 'restore') {
     cancel(); state.routes = routes; state.selectedId = routes[0]?.id ?? ''
     if (routes[0]) state.settings = copySettings(routes[0].settings)
-    state.presentation = reason; state.revision++; state.error = ''
+    state.presentation = reason; state.revision++; state.error = ''; state.notices = []
   }
   async function dropJoint(index: number, coordinates: [number, number]) {
     const joints = state.settings.joints.map(p => [...p] as [number, number])

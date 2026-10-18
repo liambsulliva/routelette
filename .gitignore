@@ -10,3 +10,6 @@
 /.env
 /.env.*
 !/.env.example
+
+# Routing snapshot built by npm run graph:build
+/public/graph/

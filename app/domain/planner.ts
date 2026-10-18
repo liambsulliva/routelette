@@ -49,10 +49,13 @@ export interface PlanningRequest {
   settings: PlanningSettings
   route?: RouteCandidate
 }
+/** Something the panel should explain about a result. Distances are in meters so the panel can format them in the chosen units. */
+export interface PlanningNotice { code: 'start-moved' | 'stops-over-budget' | 'off-target'; meters: number }
 export interface PlanningResult {
   routes: RouteCandidate[]
   adjustedForLegality: boolean
   elevationAvailable: boolean
+  notices?: PlanningNotice[]
 }
 export interface PlanningService {
   execute(request: PlanningRequest, signal: AbortSignal): Promise<PlanningResult>
@@ -76,7 +79,9 @@ export interface GraphManifest {
   schemaVersion: number
   version: string
   builtAt: string
-  regions: Array<{ id: string; name: string; bounds: [number, number, number, number]; tiles: string[] }>
+  /** Width and height of each tile in degrees. */
+  tileDegrees?: number
+  regions: Array<{ id: string; name: string; bounds: [number, number, number, number]; tiles: string[]; dataTimestamp?: string }>
   attribution: string
 }
 export interface GraphTileProvider {

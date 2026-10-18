@@ -117,7 +117,7 @@ Full-bleed map. The planning panel floats at the left, 360 px wide, 16 px from t
 Panel, top to bottom:
 
 1. **Header.** Logo on the left. Icon buttons on the right: theme (light, dark, system), units (mi or km), reduce motion.
-2. **Tabs.** Plan and Saved.
+2. **Tabs.** Plan and Saved. Hover puts the light gray fill behind the label only. The active underline jumps from the current tab to the one that was clicked.
 3. **Mode.** Bike, Run, Walk. The selected one is a copper pill.
 4. **Start.** Search field with a locate button inside it.
 5. **Stops.** Up to 5 checkpoints and "Add a stop".
@@ -149,7 +149,7 @@ After a start exists, clicking empty map space does nothing unless start placeme
 Optional checkpoints the loop must pass through. Up to 5.
 
 - Add one from a search result, with "Add a stop" followed by a map click, or with a long press on mobile.
-- The app orders stops by bearing around the start so the loop doesn't cross itself. Lock the order to drag them into your own.
+- The app orders stops by bearing around the start so the loop doesn't cross itself. Drag a stop row to reorder the list, or drag its map marker to move that checkpoint. Either drag locks the order. The lock button does the same without moving a stop.
 - A lock button beside the Stops heading enables manual ordering. Adding a stop from the sidebar triggers generation and the route-drawing animation through the new point.
 - If the shortest loop through every stop is more than 10% over the target, Routelette shows only that loop, explains it ("Your stops need at least 7.2 mi") and disables Roll.
 
@@ -324,6 +324,8 @@ Kept tags: `highway`, `surface`, `access`, `foot`, `bicycle`, `sidewalk`, `sidew
 
 Also retain ordered way nodes and original way IDs, direction tags including `oneway`, `oneway:bicycle`, `oneway:foot` and `junction`, access hierarchy tags including `vehicle`, and directional or conditional access variants. Keep tagged barrier nodes and their access rules. Fetch turn-restriction relations with their ordered members, via nodes or ways, mode exceptions and conditional restrictions. Tile boundaries must preserve the information needed to resolve those relations. Routing results record graph coverage and data age so missing graph data cannot be mistaken for no available route.
 
+**Snapshot build.** `npm run graph:build` reads Geofabrik PBF extracts (Pennsylvania for Pittsburgh; DC, Maryland and Virginia for the DC Metro area) because the public Overpass server rejects bulk automated queries. The launch boxes are lon -80.20 to -79.75, lat 40.30 to 40.62 for Pittsburgh and lon -77.40 to -76.80, lat 38.70 to 39.15 for DC Metro. Ways split at junctions, barriers and restriction via nodes. Tiles are 0.05 degrees square, and each edge lives in the tile of its first node. The build derives per-mode access and direction, cost flags and barrier rules from the tags above. Turn restrictions apply to bicycles only, honoring `restriction:bicycle` and `except=bicycle`. Conditional restrictions are not applied. The first build is 237 tiles and 78.5 MB.
+
 ### 9.2 Cost
 
 Edge cost is length × a mode multiplier. The multiplier is built from highway type, surface and access, then the two preferences, then the surface preference.
@@ -366,6 +368,10 @@ A* finds paths between two points, so loops are built from legs:
 3. Run A* leg by leg, start to start. Edges already used in this loop get a penalty, so legs don't retrace each other.
 4. Remove out-and-back spurs: any stretch that leaves a point and returns to it while enclosing almost no area.
 5. Scale the radius and retry until the total lands within ±10%.
+
+Spur removal also catches an out-and-back that returns on a parallel way, such as up one sidewalk and back down the other. Stops, starts and generated waypoints snap only to the largest connected part of the network. An unnamed sidewalk takes the name of the street beside it in the turn list.
+
+Reverse and joint edits route through anchor junctions along the existing line, and roads on that line cost 35% of normal, so the result stays on it wherever the rules allow.
 
 Each seed produces 12 candidates. Score each by distance error, overlap and out-and-back stretches, the mode's cost, elevation fit, and overlap with the other picks. Then re-rank on this device using the saved-routes novelty penalty and keep up to 3 distinct routes. If only one or two qualify, return those without a limited-results explanation.
 
@@ -460,6 +466,8 @@ GPX export, time-based targets, keyboard shortcuts, accounts and sync, image sha
 ## 17. Implementation stages
 
 Build and review the Nuxt interface first, with a live MapLibre map and the real Bloomfield route fixtures. Add the live routing engine next, then saved routes, sharing and Strava.
+
+The live engine now runs by default. `NUXT_PUBLIC_FIXTURE_MODE=true` restores the recorded Bloomfield preview for design review.
 
 The first stage defines the route data model and a cancellable planning service that the worker engine can implement later. Components must not depend on fixture-specific route shapes, timings or counts. Planning requests carry identities so stale results cannot replace newer state. Keep map rendering separate from route generation through the specified MapAdapter.
 

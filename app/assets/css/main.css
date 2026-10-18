@@ -63,12 +63,16 @@ h1, h2, p { margin: 0; }
 .brand { display: inline-flex; gap: 10px; align-items: center; flex: none; }
 .brand-mark { display: flex; justify-content: center; align-items: center; width: 28px; height: 28px; flex: none; }
 .brand-mark img { max-width: none; width: 32px; height: 32px; }
-.wordmark { font: 700 18px/24px 'Sora', sans-serif; letter-spacing: -.54px; transform: translateY(-1px); }
+.wordmark { font: 700 18px/24px 'Sora', sans-serif; letter-spacing: -.54px; transform: translateY(1px); }
 .header-controls { display: flex; align-items: center; }
 .unit-control { font: 500 10px/12px 'Geist Mono', monospace; text-transform: lowercase; }
-.panel-tabs { display: flex; height: 47px; flex: none; align-items: stretch; border-bottom: 1px solid var(--line); }
-.panel-tabs button { display: flex; gap: 8px; align-items: center; padding: 0 8px 12px; margin-top: 8px; margin-right: 12px; border-bottom: 2px solid transparent; color: var(--muted); font-weight: 500; }
-.panel-tabs button.active { border-bottom-color: var(--fg); color: var(--fg); }
+.panel-tabs { position: relative; display: flex; height: 47px; flex: none; align-items: stretch; border-bottom: 1px solid var(--line); }
+.panel-tabs button { display: flex; gap: 8px; align-items: center; padding: 0 8px 12px; margin-top: 8px; margin-right: 12px; color: var(--muted); font-weight: 500; }
+.panel-tabs button span { border-radius: 4px; padding: 2px 6px; margin: -2px -6px; transition: background-color 120ms ease; }
+.panel-tabs button:hover span { background: var(--hover); }
+.panel-tabs button.active { color: var(--fg); }
+.tab-indicator { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--fg); pointer-events: none; }
+.tab-indicator.ready { transition: transform 280ms var(--spring), width 280ms var(--spring); }
 .plan-scroll { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; margin: 0 -4px 0 0; padding-right: 4px; }
 .planning-controls { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; padding-bottom: 12px; }
 .mode-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -94,6 +98,8 @@ h1, h2, p { margin: 0; }
 .danger { color: var(--danger); }
 .stops-section .section-label { color: var(--muted); }
 .stop-row { display: flex; align-items: center; gap: 8px; min-height: 40px; }
+.stop-row[draggable='true'] { cursor: grab; }
+.stop-row[draggable='true']:active { cursor: grabbing; }
 .stop-row > .iconify { color: var(--muted); }
 .stop-index { display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 18px; height: 18px; font: 600 10px/12px 'Sora', sans-serif; background: var(--fg); color: var(--bg); flex: none; }
 .stop-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -182,6 +188,8 @@ button.roll-button.busy:disabled { background: var(--line-strong); color: var(--
 .error-line { flex: none; display: flex; align-items: flex-start; gap: 8px; padding: 12px 0 0; font-size: 12px; line-height: 16px; color: var(--danger); }
 .error-line > span { flex: 1; }
 .error-line > button { text-decoration: underline; }
+.error-line > .iconify { flex: none; }
+.notice-line { color: var(--muted); }
 .toast-message { position: fixed; z-index: 40; top: 16px; left: calc(50% + 180px); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-radius: 8px; max-width: calc(100vw - 420px); }
 .toast-enter-active, .toast-leave-active { transition: opacity 180ms ease, translate 250ms var(--spring); }
 .toast-enter-from, .toast-leave-to { opacity: 0; translate: 0 -8px; }
@@ -225,7 +233,7 @@ button.roll-button.busy:disabled { background: var(--line-strong); color: var(--
 .map-marker { display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg); border: 1.5px solid var(--line-strong); color: var(--fg); font: 600 10px/12px 'Sora', sans-serif; width: 22px; height: 22px; box-shadow: 0 1px 2px #0002; }
 .map-marker.start { background: var(--fg); border: 5px solid var(--bg); }
 .map-marker.selected { background: var(--accent); color: var(--inverse); border-color: var(--bg); }
-.map-marker.stop { background: var(--fg); color: var(--bg); border-color: var(--bg); width: 18px; height: 18px; }
+.map-marker.stop { background: var(--fg); color: var(--bg); border-color: var(--bg); width: 18px; height: 18px; cursor: grab; }
 .map-marker.joint { width: 14px; height: 14px; border: 2px solid var(--accent); }
 
 @media (max-width: 767px) {
