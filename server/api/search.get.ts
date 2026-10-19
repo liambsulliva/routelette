@@ -5,6 +5,7 @@ interface PhotonFeature {
   geometry?: { coordinates?: number[] }
 }
 interface CensusMatch {
+  matchedAddress: string
   coordinates: { x: number; y: number }
   addressComponents: { fromAddress: string; preDirection: string; streetName: string; suffixType: string; suffixDirection: string; city: string }
 }
@@ -62,7 +63,9 @@ async function fromCensus(address: string): Promise<Candidate[]> {
     const street = [a.preDirection, a.streetName, a.suffixType, a.suffixDirection].filter(Boolean)
       .map(part => CENSUS_WORDS[part] ?? title(part)).join(' ')
     const x = match.coordinates.x, y = match.coordinates.y
-    return { place: { id: `census-${x},${y}`, label: `${a.fromAddress} ${street}, ${title(a.city)}`, coordinates: [x, y] }, score: 15, exact: true, local: true }
+    // fromAddress is where the block's range starts. The matched address carries the number the user typed.
+    const house = match.matchedAddress.split(' ')[0]!
+    return { place: { id: `census-${x},${y}`, label: `${house} ${street}, ${title(a.city)}`, coordinates: [x, y] }, score: 15, exact: true, local: true }
   })
 }
 async function censusCandidates(q: string): Promise<Candidate[]> {
