@@ -302,7 +302,7 @@ Imported loops join the list as ordinary saved routes.
 
 ## 7. Sharing
 
-Only routes are shared, never a planning session. Share opens the system share sheet (or copies the link) with a read-only link: `/r#<encoded polyline and stats>`. The page shows that one route on the map with its legend. The panel has no tabs. It shows a "Shared route" label, the route name, the mode and area, big copper distance, gain and time, and one line of context ("A loop from 4900 Friendship Ave."). At the bottom are a copper "Plan your own" button, which opens the planner at the same start and mode, and outline buttons for Copy link and Reverse. Nothing is stored on a server; the link carries the route.
+Only routes are shared, never a planning session. Share opens the system share sheet (or copies the link) with a read-only link: `/r#<encoded polyline and stats>`. The page shows that one route on the map with its legend. The camera fits the route clear of the panel, and the line draws in from its start. On a phone the fit accounts for the expanded sheet, so the whole route stays visible above it. The panel has no tabs. It shows a "Shared route" label, the route name, the mode and area, big copper distance, gain and time, and one line of context ("A loop from 4900 Friendship Ave."). At the bottom are a copper "Plan your own" button, which opens the planner at the same start and mode, and outline buttons for Copy link and Reverse. Nothing is stored on a server; the link carries the route.
 
 ## 8. Mobile (below 768 px)
 

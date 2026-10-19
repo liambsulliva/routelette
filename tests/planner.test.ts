@@ -112,6 +112,13 @@ describe('planning orchestration', () => {
     expect(noRoutesShown(planner.state)).toBe(false)
   })
 
+  it('marks a route loaded from a shared link so the map refits to it', () => {
+    const planner = createPlanner(controlledService().service, settings())
+    planner.load(previewRoutes(), 'shared')
+    expect(planner.state.presentation).toBe('shared')
+    expect(planner.state.routes).toHaveLength(3)
+  })
+
   it('does not pad a response with duplicate routes', async () => {
     const fake = controlledService(), planner = createPlanner(fake.service, settings())
     const pending = planner.run()

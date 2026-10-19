@@ -20,6 +20,8 @@ onMounted(() => {
   } catch { loading.value = false; failed.value = true }
 })
 watch(() => props.revision, () => render())
+// The map can load after the layout is measured, so the fit must read the current phone layout, not the one at mount.
+watch(() => [props.mobile, props.panelHeight, props.cards] as const, ([mobile, panelHeight, cards]) => adapter?.setLayout({ mobile, panelHeight, cards }))
 watch(() => props.dark, dark => adapter?.theme(dark))
 watch(() => props.highlighted, points => adapter?.highlight(points))
 watch(() => props.scene.hoveredId, id => adapter?.emphasize(id ?? ''))

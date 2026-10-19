@@ -15,6 +15,8 @@ export interface MapEvents {
 export interface Presentation { animate: boolean; fit: boolean; reveal: boolean; deferAlternates: boolean; mobile: boolean; panelHeight: number; cards: boolean }
 export interface MapAdapter {
   render(scene: MapScene, presentation: Presentation): void
+  /** Keeps the panel layout current for the next fit. It does not redraw or move the camera. */
+  setLayout(layout: Pick<Presentation, 'mobile' | 'panelHeight' | 'cards'>): void
   theme(dark: boolean): void
   fly(point: Coordinates, animate: boolean): void
   highlight(coordinates: Coordinates[]): void
@@ -181,6 +183,7 @@ export function createMapAdapter(container: HTMLElement, events: MapEvents, dark
   map.on('touchmove', () => clearTimeout(longPress)); map.on('touchend', () => clearTimeout(longPress))
   return {
     render(nextScene, nextOptions) { scene = nextScene; options = nextOptions; draw() },
+    setLayout(layout) { options = { ...options, ...layout } },
     theme(nextDark) { if (nextDark === isDark) return; isDark = nextDark; map.setStyle(`https://tiles.openfreemap.org/styles/${isDark ? 'dark' : 'positron'}`) },
     fly(point, animate) { if (loaded) map.flyTo({ center: point, zoom: 14.5, duration: animate ? 450 : 0, padding: { left: options.mobile ? 0 : 360, right: 0, top: 0, bottom: options.mobile ? options.panelHeight : 0 } }) },
     highlight(coordinates) { if (!loaded) return; (map.getSource('highlight') as GeoJSONSource | undefined)?.setData(coordinates.length > 1 ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } }] } : empty()) },

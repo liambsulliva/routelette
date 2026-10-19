@@ -214,7 +214,7 @@ onMounted(async () => {
   if (query.get('expanded') === '1') expanded.value = true
   if (window.location.pathname === '/r') {
     const route = decodeRoute(window.location.hash.slice(1))
-    if (route) { shared.value = true; tab.value = 'plan'; planner.load([route]); expanded.value = true }
+    if (route) { shared.value = true; tab.value = 'plan'; planner.load([route], 'shared'); expanded.value = true }
     else state.error = 'This route link could not be opened.'
   }
   hydrated.value = true

@@ -23,6 +23,10 @@ describe('map presentation', () => {
     expect(presentationFor('reshape', false).reveal).toBe(false)
   })
 
+  it('refits the camera and draws in a route opened from a shared link', () => {
+    expect(presentationFor('shared', false)).toEqual({ animate: true, fit: true, reveal: true, deferAlternates: false })
+  })
+
   it('restores a busy result without refitting the camera', () => {
     expect(presentationFor('restore', false)).toEqual({ animate: true, fit: false, reveal: true, deferAlternates: true })
   })

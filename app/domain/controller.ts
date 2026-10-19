@@ -13,7 +13,7 @@ export function noRoutesShown(state: { busy: boolean; error: string; routes: unk
 export function createPlanner(service: PlanningService, settings = initialSettings()) {
   const state = reactive({
     settings, routes: [] as RouteCandidate[], selectedId: '', busy: false, error: '',
-    elevationAvailable: true, revision: 0, presentation: 'selection' as 'generate' | 'selection' | 'restore' | 'reverse' | 'reshape' | 'saved',
+    elevationAvailable: true, revision: 0, presentation: 'selection' as 'generate' | 'selection' | 'restore' | 'reverse' | 'reshape' | 'saved' | 'shared',
     toast: '', notices: [] as PlanningNotice[],
   })
   let sequence = 0
@@ -74,7 +74,7 @@ export function createPlanner(service: PlanningService, settings = initialSettin
     state.presentation = wasBusy ? 'restore' : 'selection'
     state.revision++
   }
-  function load(routes: RouteCandidate[], reason: 'selection' | 'restore' = 'restore') {
+  function load(routes: RouteCandidate[], reason: 'selection' | 'restore' | 'shared' = 'restore') {
     cancel(); state.routes = routes; state.selectedId = routes[0]?.id ?? ''
     if (routes[0]) state.settings = copySettings(routes[0].settings)
     state.presentation = reason; state.revision++; state.error = ''; state.notices = []
