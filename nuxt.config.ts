@@ -14,15 +14,37 @@ export default defineNuxtConfig({
         {
           name: "description",
           content:
-            "Choose a starting point, a way to move and a distance. The app will find a loop back to where you began.",
+            "Pick a starting point, a direction, and a distance. The app will chart a path and loop you back to where you began.",
         },
         { name: "theme-color", content: "#ffffff" },
+        { property: "og:type", content: "website" },
+        { property: "og:site_name", content: "Routelette" },
+        { property: "og:title", content: "Routelette" },
+        {
+          property: "og:description",
+          content:
+            "Pick a starting point, a direction, and a distance. The app will chart a path and loop you back to where you began.",
+        },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: "Routelette" },
+        {
+          name: "twitter:description",
+          content:
+            "Pick a starting point, a direction, and a distance. The app will chart a path and loop you back to where you began.",
+        },
       ],
       link: [
         {
           rel: "icon",
           type: "image/svg+xml",
           href: "/brand/routelette-mark.svg",
+          media: "(prefers-color-scheme: light)",
+        },
+        {
+          rel: "icon",
+          type: "image/svg+xml",
+          href: "/brand/routelette-mark-dark.svg",
+          media: "(prefers-color-scheme: dark)",
         },
       ],
       htmlAttrs: { lang: "en" },

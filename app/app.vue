@@ -12,6 +12,16 @@ import { encodeRoute, decodeRoute } from './services/share'
 import { createWorkerPlanner } from './services/worker-planner'
 
 const config = useRuntimeConfig()
+// Social preview images need absolute URLs. The request's own origin keeps them right on whichever domain serves the app.
+const requestUrl = useRequestURL()
+const socialImage = () => new URL('/brand/social-preview.png', requestUrl).href
+useSeoMeta({
+  ogImage: socialImage,
+  ogImageWidth: 1200,
+  ogImageHeight: 630,
+  ogImageAlt: "Routelette: Let's circle back, the right way.",
+  twitterImage: socialImage,
+})
 const fixtureMode = config.public.fixtureMode === true || String(config.public.fixtureMode) === 'true'
 const planner = createPlanner(fixtureMode ? createFixturePlanner() : config.public.graphManifestUrl ? createWorkerPlanner(String(config.public.graphManifestUrl)) : createUnavailablePlanner())
 const { state, selected } = planner

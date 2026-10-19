@@ -90,7 +90,7 @@ Spacing scale 4, 8, 12, 16, 24, 32, 48, 64. Radius 4 for controls, 16 with 60% s
 
 ### 1.5 Logo
 
-Placeholder: a wheel that reads as both a bike wheel and a roulette wheel. A copper ring with eight copper spokes that stop just short of a black hub. The wordmark "Routelette" in Sora Bold sits beside it, trimmed to cap height so the letters center on the hub. Center the actual wheel artwork in the lockup's 28 px mark wrapper. Its 32 px SVG sits at y = -2 px so the hub and text share a vertical center. The mark alone is the favicon. The lockup is not a link. Clicking it does nothing, so it never reloads the page.
+Placeholder: a wheel that reads as both a bike wheel and a roulette wheel. A copper ring with eight copper spokes that stop just short of a black hub. The wordmark "Routelette" in Sora Bold sits beside it, trimmed to cap height so the letters center on the hub. Center the actual wheel artwork in the lockup's 28 px mark wrapper. Its 32 px SVG sits at y = -2 px so the hub and text share a vertical center. The mark alone is the favicon. The favicon follows the system color scheme: the light mark on light systems and the dark mark on dark ones. Social previews use the 1200×630 banner at `public/brand/social-preview.png`, with absolute image URLs built from the request origin. The lockup is not a link. Clicking it does nothing, so it never reloads the page.
 
 ## 2. Modes
 
