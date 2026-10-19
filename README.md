@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/brand/social-preview.png" alt="Routelette: Let's circle back, the right way.">
+  <img src="public/brand/social-preview.png" alt="Routelette: The better way to circle back.">
 </p>
 
 # Routelette

@@ -19,7 +19,7 @@ useSeoMeta({
   ogImage: socialImage,
   ogImageWidth: 1200,
   ogImageHeight: 630,
-  ogImageAlt: "Routelette: Let's circle back, the right way.",
+  ogImageAlt: "Routelette: The better way to circle back.",
   twitterImage: socialImage,
 })
 const fixtureMode = config.public.fixtureMode === true || String(config.public.fixtureMode) === 'true'
