@@ -293,10 +293,10 @@ button.roll-button.busy:disabled { background: var(--line-strong); color: var(--
   .panel-tabs { height: 39px; }
   .panel-tabs button { padding-bottom: 8px; margin-top: 0; }
   .planner-panel:not(.expanded) .error-line { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
-  .route-cards { left: 0; right: 0; bottom: calc(var(--sheet-height) + 16px); gap: 8px; padding: 4px 8px; margin: 0; }
+  .route-cards { left: 0; right: 0; bottom: calc(var(--sheet-height) - 8px); gap: 8px; padding: 4px 8px; margin: 0; }
   .route-card { border-radius: 12px; }
   .route-legend { top: auto; bottom: calc(var(--sheet-height) + 16px); right: 8px; flex-direction: column-reverse; }
-  .has-cards .route-legend { bottom: calc(var(--sheet-height) + 160px); }
+  .has-cards .route-legend { bottom: calc(var(--sheet-height) + 144px); }
   .legend-dropdown { max-height: calc(100dvh - var(--sheet-height) - 240px); transform-origin: bottom right; }
   .legend-enter-from, .legend-leave-to { transform: translateY(6px) scale(.98); }
   .saved-view .route-legend, .shared-view .route-legend { bottom: calc(var(--sheet-height) + 16px); }
@@ -304,9 +304,16 @@ button.roll-button.busy:disabled { background: var(--line-strong); color: var(--
   .sheet-expanded .preview-badge, .saved-view .preview-badge { top: 68px; left: auto; right: 8px; opacity: .8; z-index: 21; }
   .sheet-expanded .preview-badge > span { display: none; }
   .toast-message { top: 68px; left: 8px; right: 8px; transform: none; max-width: none; }
+  /* The message keeps its natural width, so the close button is pushed to the end of the row. */
+  .toast-message .icon-button { margin-left: auto; }
   .map-status { top: 106px; bottom: auto; font-size: 12px; }
   .saved-content { padding-top: 12px; }
-  .shared-view .planner-panel { top: auto; height: min(66dvh, 600px); }
+  /* The shared drawer is a compact summary on phones: the name and stats, then the actions. It never expands. */
+  .planner-app.shared-view .planner-panel:not(.saved) { top: auto; height: auto; }
+  .planner-app.shared-view .planner-panel .roll-button { width: 100%; margin-left: 0; }
+  .shared-view .shared-content > p { display: none; }
+  /* Matches the card row's left edge, which sits 8px in from the screen. */
+  .route-empty { margin: 0 0 0 8px; padding: 12px 16px; }
   .shared-content { padding-top: 20px; }
   .icon-tooltip { display: none; }
 }

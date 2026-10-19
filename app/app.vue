@@ -5,6 +5,7 @@ import { createPlanner, noRoutesShown } from './domain/controller'
 import { DEFAULT_PACE, distanceText, gainText, minutesFor, toDistance, METERS_PER_MILE } from './domain/units'
 import { LOCATE_OPTIONS, locationErrorMessage } from './domain/location'
 import { needsPaceSetup, PACE_SETUP_KEY } from './domain/preferences'
+import { COLLAPSED_HEIGHT, COLLAPSED_HEIGHT_WITH_START, EXPANDED_INSET, dragBegun, sheetDragScrolls, sheetHeight, sheetSettle, sheetShowsExpanded } from './domain/sheet'
 import { createFixturePlanner, createUnavailablePlanner, PREVIEW_START, PREVIEW_STOP, previewRoutes, previewSavedRoutes } from './services/fixture-planner'
 import { createSavedRoutes } from './services/saved-routes'
 import { encodeRoute, decodeRoute } from './services/share'
@@ -55,8 +56,67 @@ const noticeText = computed(() => state.notices.map(notice => {
 }).join(' '))
 const stopsOverBudget = computed(() => state.notices.some(notice => notice.code === 'stops-over-budget'))
 function cycleTheme() { theme.value = theme.value === 'system' ? 'light' : theme.value === 'light' ? 'dark' : 'system' }
-async function change(patch: Partial<PlanningSettings>) { if (patch.start) ++startSelectionVersion; placing.value = null; await planner.change(patch) }
+async function change(patch: Partial<PlanningSettings>) { if (patch.start) ++startSelectionVersion; placing.value = null; collapseForReroll(); await planner.change(patch) }
 function toggleExpanded() { expanded.value = !expanded.value; if (expanded.value) legendOpen.value = false }
+/** Anything that rerolls the routes collapses the phone sheet, so the map shows the new result. */
+function collapseForReroll() { if (mobile.value && !shared.value) expanded.value = false }
+function rollRoute() { collapseForReroll(); void planner.roll() }
+/**
+ * The phone sheet follows the finger. Its height tracks the drag, and on release it settles open or closed.
+ * Only the height is driven here. The view switches as soon as the finger moves a few pixels, not when the sheet reaches its middle.
+ */
+const drag = { active: false, started: false, startY: 0, startHeight: 0, minHeight: 0, maxHeight: 0, lastY: 0, lastTime: 0, speed: 0 }
+let settleTimer: ReturnType<typeof setTimeout> | undefined
+function clearSheetStyles() { if (!panel.value) return; panel.value.style.height = ''; panel.value.style.top = ''; panel.value.style.transition = '' }
+/** A touch only records where it began. Nothing moves until the finger has dragged past DRAG_SLOP, so taps leave the sheet alone. */
+function dragStart(event: TouchEvent) {
+  const touch = event.touches[0]
+  if (!mobile.value || shared.value || !touch || !panel.value) return
+  const scroller = (event.target as Element | null)?.closest<HTMLElement>('.plan-scroll, .saved-content')
+  if (sheetDragScrolls(expanded.value, scroller?.scrollTop ?? 0)) return
+  const area = panel.value.parentElement?.clientHeight ?? window.innerHeight
+  Object.assign(drag, { active: true, started: false, startY: touch.clientY, startHeight: panel.value.offsetHeight, minHeight: state.settings.start ? COLLAPSED_HEIGHT_WITH_START : COLLAPSED_HEIGHT, maxHeight: area - EXPANDED_INSET, lastY: touch.clientY, lastTime: performance.now(), speed: 0 })
+}
+function dragMove(event: TouchEvent) {
+  const touch = event.touches[0]
+  if (!drag.active || !touch || !panel.value) return
+  const moved = touch.clientY - drag.startY
+  if (!drag.started) {
+    if (!dragBegun(moved)) return
+    // The drag has begun. A settle still running is cancelled, and the sheet's own styles hold until release.
+    drag.started = true
+    clearTimeout(settleTimer)
+    panel.value.style.transition = 'none'
+  }
+  event.preventDefault()
+  const now = performance.now()
+  drag.speed = (touch.clientY - drag.lastY) / Math.max(1, now - drag.lastTime)
+  drag.lastY = touch.clientY
+  drag.lastTime = now
+  const height = sheetHeight(drag.startHeight, moved, drag.minHeight, drag.maxHeight)
+  panel.value.style.top = 'auto'
+  panel.value.style.height = `${height}px`
+  expanded.value = sheetShowsExpanded(height, drag.minHeight)
+}
+function dragEnd() {
+  const dragged = drag.active && drag.started
+  drag.active = false
+  if (!dragged || !panel.value) return
+  const open = sheetSettle(panel.value.offsetHeight, drag.minHeight, drag.maxHeight, drag.speed) === 'expand'
+  // Reading the height commits the dragged frame, so the settle animates from where the finger left the sheet.
+  void panel.value.offsetHeight
+  panel.value.style.transition = ''
+  panel.value.style.top = 'auto'
+  panel.value.style.height = `${open ? drag.maxHeight : drag.minHeight}px`
+  if (open) {
+    expanded.value = true
+    legendOpen.value = false
+    settleTimer = setTimeout(clearSheetStyles, 300)
+  } else {
+    // Closing keeps the planning view while the sheet shrinks, and gives way to the summary only once it has landed.
+    settleTimer = setTimeout(() => { expanded.value = false; clearSheetStyles() }, 300)
+  }
+}
 function placeIndicator() {
   const button = tabsEl.value?.querySelector<HTMLButtonElement>(`[data-tab="${tab.value}"]`)
   if (!button) return
@@ -214,7 +274,7 @@ onMounted(async () => {
   if (query.get('expanded') === '1') expanded.value = true
   if (window.location.pathname === '/r') {
     const route = decodeRoute(window.location.hash.slice(1))
-    if (route) { shared.value = true; tab.value = 'plan'; planner.load([route], 'shared'); expanded.value = true }
+    if (route) { shared.value = true; tab.value = 'plan'; planner.load([route], 'shared'); if (!mobile.value) expanded.value = true }
     else state.error = 'This route link could not be opened.'
   }
   hydrated.value = true
@@ -246,7 +306,7 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
     <ClientOnly><LazyMapView :scene="scene" :dark="dark" :reduced-motion="reducedMotion" :revision="sceneRevision" :presentation="state.presentation" :mobile="mobile" :panel-height="panelHeight" :cards="cardsVisible" :highlighted="highlighted" @click="mapClick" @hover="hoveredRouteId = $event" @select="selectRoute($event, true)" @joint="planner.dropJoint" @stop="moveStop" @longpress="addMapStop" /></ClientOnly>
     <div v-if="fixtureMode && !shared" class="preview-badge"><span>Design preview</span><span class="preview-separator">·</span><button type="button" @click="preview('results')">Preview Bloomfield</button></div>
     <div class="mobile-header surface"><AppHeader :theme="theme" :dark="dark" :units="units" :reduced-motion="reducedMotion" @theme="cycleTheme" @units="units = units === 'mi' ? 'km' : 'mi'" @motion="reducedMotion = !reducedMotion" /></div>
-    <section ref="panel" class="planner-panel surface" :class="{ expanded: expanded || shared, saved: tab === 'saved' }" aria-label="Route planner">
+    <section ref="panel" class="planner-panel surface" :class="{ expanded: expanded || (shared && !mobile), saved: tab === 'saved' }" aria-label="Route planner" @touchstart.passive="dragStart" @touchmove="dragMove" @touchend="dragEnd" @touchcancel="dragEnd">
       <div class="desktop-header"><AppHeader :theme="theme" :dark="dark" :units="units" :reduced-motion="reducedMotion" @theme="cycleTheme" @units="units = units === 'mi' ? 'km' : 'mi'" @motion="reducedMotion = !reducedMotion" /></div>
       <button v-if="!shared" type="button" class="sheet-grabber" :aria-label="expanded ? 'Collapse planner' : 'Expand planner'" :aria-expanded="expanded" @click="toggleExpanded"><span /></button>
       <template v-if="shared && activeRoute">
@@ -258,7 +318,7 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
           <div class="plan-scroll"><PlanControls :settings="state.settings" :units="units" :elevation-available="state.elevationAvailable" :placing="placing" :locating="locating" @change="change" @placement="placing = $event" @locate="locate" /></div>
           <div v-if="state.error" class="error-line" role="status"><Icon name="ph:warning-circle" size="20" /><span>{{ state.error }}</span><button v-if="!fixtureMode" type="button" @click="planner.run()">Retry</button></div>
           <div v-if="noticeText && !state.error" class="error-line notice-line" role="status"><Icon name="ph:info" size="20" /><span>{{ noticeText }}</span></div>
-          <div class="roll-action"><button type="button" class="mobile-summary" aria-label="Expand route settings" @click="toggleExpanded"><span class="summary-mode"><Icon :name="MODE_ICONS[state.settings.mode]" size="20" /></span><span class="summary-distance">{{ distanceText(state.settings.distanceMeters, units) }}<span class="unit distance-unit">{{ units }}</span></span></button><RollButton :busy="state.busy" :disabled="!state.settings.start || stopsOverBudget" @click="planner.roll()" /></div>
+          <div class="roll-action"><button type="button" class="mobile-summary" aria-label="Expand route settings" @click="toggleExpanded"><span class="summary-mode"><Icon :name="MODE_ICONS[state.settings.mode]" size="20" /></span><span class="summary-distance">{{ distanceText(state.settings.distanceMeters, units) }}<span class="unit distance-unit">{{ units }}</span></span></button><RollButton :busy="state.busy" :disabled="!state.settings.start || stopsOverBudget" @click="rollRoute" /></div>
         </template>
         <template v-else>
           <div class="saved-content"><div class="saved-heading"><p>{{ saved.length }} saved {{ saved.length === 1 ? 'route' : 'routes' }}</p><p>Saved on this device only.</p></div><p v-if="!saved.length" class="empty-saved">Saved routes will appear here.</p>

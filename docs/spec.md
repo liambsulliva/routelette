@@ -302,7 +302,7 @@ Imported loops join the list as ordinary saved routes.
 
 ## 7. Sharing
 
-Only routes are shared, never a planning session. Share opens the system share sheet (or copies the link) with a read-only link: `/r#<encoded polyline and stats>`. The page shows that one route on the map with its legend. The camera fits the route clear of the panel, and the line draws in from its start. On a phone the fit accounts for the expanded sheet, so the whole route stays visible above it. The panel has no tabs. It shows a "Shared route" label, the route name, the mode and area, big copper distance, gain and time, and one line of context ("A loop from 4900 Friendship Ave."). At the bottom are a copper "Plan your own" button, which opens the planner at the same start and mode, and outline buttons for Copy link and Reverse. Nothing is stored on a server; the link carries the route.
+Only routes are shared, never a planning session. Share opens the system share sheet (or copies the link) with a read-only link: `/r#<encoded polyline and stats>`. The page shows that one route on the map with its legend. The camera fits the route clear of the panel, and the line draws in from its start. On a phone the fit accounts for the expanded sheet, so the whole route stays visible above it. On a phone the drawer is a compact summary: the name, then distance, gain and time, then the actions. It never expands. The panel has no tabs. It shows a "Shared route" label, the route name, the mode and area, big copper distance, gain and time, and one line of context ("A loop from 4900 Friendship Ave."). At the bottom are a copper "Plan your own" button, which opens the planner at the same start and mode, and outline buttons for Copy link and Reverse. Nothing is stored on a server; the link carries the route.
 
 ## 8. Mobile (below 768 px)
 
@@ -310,8 +310,9 @@ Full-bleed map with floating surfaces inset 8 px.
 
 - **Header:** a floating bar at the top with the logo and the three header buttons.
 - **Bottom bar, collapsed:** mode, distance and Roll in one row. Before a start is set, it also shows the search field. Do not add onboarding explainer text.
-- **Route cards:** a row above the bar that scrolls sideways.
-- **Bottom bar, expanded:** the full panel, including Preferences. It expands only when tapped, never on its own.
+- **Route cards:** a row above the bar that scrolls sideways. It sits 8 px above the bar. "No routes available" takes the same spot and lines up with the first card's left edge.
+- **Bottom bar, expanded:** the full panel, including Preferences. It expands when tapped or dragged up, and never on its own. The bar follows the finger as it is dragged. A drag starts once the finger has moved 8px. The planning view holds for most of the travel, on both opening and closing. The summary shows only in the last 10px above the collapsed height. Closing keeps the planning view until the sheet has landed, so the summary never sits in a tall box. A tap opens or closes the bar in place, with no movement. On release it settles open or closed: a quick flick decides, and otherwise the nearer state wins. A drag down only moves the bar once the list above the touch is back at the top, so scrolling the list does not move it.
+- **Reroll collapses the bar.** Any change that rerolls the routes collapses the expanded bar, so the map shows the new result. That covers mode, distance, elevation, surface, preferences, start, stops, and Roll.
 - **Legend:** a chip above the cards that opens upward when tapped.
 - **Stops:** long press the map to add one.
 
