@@ -21,8 +21,6 @@ npm run graph:build
 
 The four Geofabrik extracts total about 1 GB. The build takes under a minute and writes about 80 MB of tiles.
 
-Open `http://127.0.0.1:3000`. Set `NUXT_PUBLIC_FIXTURE_MODE=true` to bring back the Preview Bloomfield button and the recorded routes used in Figma, including `/?preview=results&theme=light`, `/?preview=results&theme=dark&expanded=1` and `/?preview=saved`.
-
 ```sh
 npm run check
 npm run build
