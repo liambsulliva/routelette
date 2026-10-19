@@ -140,7 +140,7 @@ Before a start is set, show the map and planning controls without a floating pro
 
 ### 4.1 Start
 
-Three ways to set it: type in the search field (Photon results as you type), tap the locate button (asks for location permission at that moment and never before), or click the map. While location is resolving, only the locate icon spins. Its gray hover fill stays still and stays hidden until the spinner stops. A start that lands far from any usable way snaps to the nearest one, and the panel says so: "Moved 40 ft to the nearest path."
+Three ways to set it: type in the search field (Photon results as you type), tap the locate button (asks for location permission at that moment and never before), or click the map. Typed street addresses work, such as "5000 Forbes Ave". While location is resolving, only the locate icon spins. If location is off, the start field shows no Cancel button, because nothing is waiting to cancel. Its gray hover fill stays still and stays hidden until the spinner stops. A start that lands far from any usable way snaps to the nearest one, and the panel says so: "Moved 40 ft to the nearest path."
 
 After a start exists, clicking empty map space does nothing unless start placement is active. Clicking the Start label enters that mode. An active Add a stop action takes priority over route selection or joint placement. Otherwise, clicking the selected route adds a joint and clicking another route selects it.
 
@@ -204,7 +204,7 @@ Existing results remain visible during generation. Clicking or tapping one cance
 
 ### 5.1 Route cards
 
-Up to three cards titled Route 1, 2 and 3 float in a row along the bottom of the map. Show only the available routes. Do not add duplicate cards or explain why fewer than three are available. Each shows distance as a big number, plus gain and estimated time, and a save button. A click or keyboard activation selects a card. Hovering a card, its route line, or its numbered marker fills that card with the same gray as an icon button and lightens that route's line. Hover does not change the selection. The selected card keeps a 1.5 px copper outline and copper text. Saving fills the bookmark glyph and leaves the button background clear.
+Up to three cards titled Route 1, 2 and 3 float in a row along the bottom of the map. Show only the available routes. Do not add duplicate cards or explain why fewer than three are available. Each shows distance as a big number, plus gain and estimated time, and a save button. A click or keyboard activation selects a card. Hovering a card, its route line, or its numbered marker fills that card with the same gray as an icon button and lightens that route's line. Hover does not change the selection. The selected card keeps a 1.5 px copper outline and copper text. Saving fills the bookmark glyph and leaves the button background clear. A filled bookmark reads "Delete saved route". Clicking it opens the same delete dialog as the Saved tab (see 6). The selected card also has a Reverse icon button beside the bookmark, with the tooltip "Reverse route" above it. It runs the reverse in 5.5 on that card.
 
 Clicking a time estimate opens a small inline pace editor beside it. Save the value per mode and update time estimates from that pace. Use an inline editor rather than a popup.
 
@@ -242,7 +242,7 @@ Clicking a row selects it. The map then shows that route alone, in copper, with 
 
 - **Selected row.** Copper outline, copper name and numbers, copper thumbnail line, plus a row of icon buttons with tooltips: Rename, Reverse, Share, Delete. Delete is the only red control.
 - **Name.** Defaults to the street the route spends the most distance on, plus "loop": "Kincaid St loop". Renaming edits the name in place ("Saturday long run").
-- **Delete.** Removes the row at once and leaves a gray placeholder in its place ("Cedarville St loop deleted", with Undo) for 5 seconds.
+- **Delete.** A dialog asks "Delete this route?" with Cancel and Delete. Cancel, Escape and a click outside the dialog do nothing else. Delete removes the row at once. There is no undo, so the dialog is the only check. The dialog's Cancel button has focus when it opens.
 - **Mobile.** The bar opens to half height so the selected route stays visible above it; the list scrolls.
 - **Storage.** IndexedDB on this device only. No accounts. A saved route keeps its geometry, not its seed, so later changes to the map data don't alter it. A legal reverse can change the geometry, so retain the original and the calculated reverse rather than storing only a direction flag.
 
@@ -387,7 +387,7 @@ AWS Terrarium DEM tiles, sampled in the worker every 20 m along a route. Gain is
 
 - **Renderer:** MapLibre GL JS behind a small `MapAdapter` interface, written by us, so tests can swap in a fake.
 - **Tiles:** OpenFreeMap. Positron for light, Dark for dark, recolored toward the `Map/*` tokens.
-- **Search:** Photon, through a server route that debounces, caches and allows swapping providers later. Reverse geocoding goes through the same route and also names the legs in the turn list.
+- **Search:** Photon, through a server route that debounces, caches and allows swapping providers later. Results with the typed house number and street rank first. When Photon has no exact house match inside the launch regions, the US Census geocoder supplies one, queried for Pittsburgh and Washington, DC. Reverse geocoding goes through the same route and also names the legs in the turn list.
 
 ## 11. Motion
 
@@ -419,7 +419,7 @@ Reduced motion is a toggle in the header, seeded from `prefers-reduced-motion`. 
 
 ## 12. Errors
 
-Errors use one line in the panel plus an action. No modals. Use an informational toast when Reverse adjusts a route for legality. Editors stay inline unless a popup is explicitly needed.
+Errors use one line in the panel plus an action. No modals for errors. The one exception is a confirmation before a destructive action, such as deleting a saved route. Use an informational toast when Reverse adjusts a route for legality. Editors stay inline unless a popup is explicitly needed.
 
 | Case | Copy | Action |
 |---|---|---|

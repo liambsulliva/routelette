@@ -71,12 +71,20 @@ export function createPlanner(service: PlanningService, settings = initialSettin
     if (routes[0]) state.settings = copySettings(routes[0].settings)
     state.presentation = reason; state.revision++; state.error = ''; state.notices = []
   }
+  let detachedSequence = 0
+  /** Calculates the legal reverse of one route without touching the current results. */
+  async function reverseCopy(route: RouteCandidate) {
+    const result = await service.execute({ id: ++detachedSequence, operation: 'reverse', settings: copySettings(route.settings), route: JSON.parse(JSON.stringify(route)) as RouteCandidate }, new AbortController().signal)
+    const reversed = result.routes[0]
+    if (!reversed) throw new PlanningFailure('no-route', "Couldn't find a legal route in the other direction.")
+    return { route: reversed, adjustedForLegality: result.adjustedForLegality }
+  }
   async function dropJoint(index: number, coordinates: [number, number]) {
     const joints = state.settings.joints.map(p => [...p] as [number, number])
     joints[index] = coordinates
     state.settings.joints = joints
     await run('reshape')
   }
-  return { state, selected, run, change, roll, select, load, cancel, dropJoint, dispose: cancel }
+  return { state, selected, run, change, roll, select, load, cancel, reverseCopy, dropJoint, dispose: cancel }
 }
 export type PlannerController = ReturnType<typeof createPlanner>

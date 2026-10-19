@@ -18,20 +18,20 @@ const dark = computed(() => theme.value === 'dark' || theme.value === 'system' &
 const pace = reactive<Record<Mode, number>>({ bike: 5, run: 9.5, walk: 20 })
 const mobile = ref(false), panelHeight = ref(94), placing = ref<'start' | 'stop' | null>(null), locating = ref(false)
 const saved = ref<RouteCandidate[]>([]), savedSelectedId = ref(''), renamingId = ref(''), renameValue = ref(''), toast = ref('')
-const deleted = ref<{ route: RouteCandidate; index: number } | null>(null), hydrated = ref(false)
-const highlighted = ref<Coordinates[]>([]), hoveredRouteId = ref(''), stravaState = ref<'idle' | 'loading' | 'done'>('idle')
+const pendingDelete = ref<RouteCandidate | null>(null), hydrated = ref(false)
+const highlighted = ref<Coordinates[]>([]), hoveredRouteId = ref(''), stravaState = ref<'idle' | 'loading' | 'done'>('idle'), reversingId = ref('')
 const panel = useTemplateRef<HTMLElement>('panel')
 const tabsEl = useTemplateRef<HTMLElement>('tabs')
 const indicator = ref({ x: 0, width: 0 })
 const indicatorReady = ref(false)
 const repository = createSavedRoutes()
-let undoTimer: ReturnType<typeof setTimeout> | undefined, toastTimer: ReturnType<typeof setTimeout> | undefined
+let toastTimer: ReturnType<typeof setTimeout> | undefined
 let resizeObserver: ResizeObserver | undefined
 let startSelectionVersion = 0
 const disposers: Array<() => void> = []
 const activeSaved = computed(() => saved.value.find(route => route.id === savedSelectedId.value) ?? null)
-const visibleRoutes = computed(() => tab.value === 'saved' && !shared.value ? (activeSaved.value ? [activeSaved.value] : []) : state.routes)
-const activeRoute = computed(() => tab.value === 'saved' && !shared.value ? activeSaved.value : selected.value)
+const visibleRoutes = computed(() => tab.value === 'saved' && !shared.value ? (activeSaved.value ? [shown(activeSaved.value)] : []) : state.routes)
+const activeRoute = computed(() => tab.value === 'saved' && !shared.value ? (activeSaved.value ? shown(activeSaved.value) : null) : selected.value)
 const cardsVisible = computed(() => !shared.value && tab.value === 'plan' && state.routes.length > 0 && !(mobile.value && expanded.value))
 const scene = computed(() => ({
   routes: visibleRoutes.value, selectedId: activeRoute.value?.id ?? '', hoveredId: hoveredRouteId.value,
@@ -58,8 +58,10 @@ function placeIndicator() {
   indicator.value = { x: button.offsetLeft, width: button.offsetWidth }
   indicatorReady.value = true
 }
+/** The direction a saved route currently runs. The original stays stored either way. */
+function shown(route: RouteCandidate) { return route.direction === 'reverse' && route.reverse ? route.reverse : route }
 function switchTab(next: 'plan' | 'saved') {
-  planner.cancel(); tab.value = next; state.revision++; legendOpen.value = false
+  planner.cancel(); tab.value = next; state.presentation = 'selection'; state.revision++; legendOpen.value = false
   if (next === 'saved') { savedSelectedId.value ||= saved.value[0]?.id ?? ''; expanded.value = true }
 }
 function selectRoute(id: string, deliberate: boolean) {
@@ -106,7 +108,7 @@ function locate() {
   locating.value = true
   navigator.geolocation.getCurrentPosition(position => {
     locating.value = false; void mapClick([position.coords.longitude, position.coords.latitude])
-  }, () => { locating.value = false; state.error = 'Location is off. Search for a start instead.' }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 })
+  }, () => { locating.value = false; placing.value = null; state.error = 'Location is off. Search for a start instead.' }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 })
   placing.value = 'start'
 }
 function preview(which: 'results' | 'saved' = 'results') {
@@ -119,9 +121,12 @@ function preview(which: 'results' | 'saved' = 'results') {
 async function persistSaved() {
   try { await repository.save(saved.value) } catch { showToast("Couldn't save on this device. Browser storage may be full.") }
 }
-function isSaved(route: RouteCandidate) { return saved.value.some(item => item.coordinates.length === route.coordinates.length && item.coordinates.every((point, i) => point[0] === route.coordinates[i]?.[0] && point[1] === route.coordinates[i]?.[1])) }
+function savedCopy(route: RouteCandidate) { return saved.value.find(item => item.coordinates.length === route.coordinates.length && item.coordinates.every((point, i) => point[0] === route.coordinates[i]?.[0] && point[1] === route.coordinates[i]?.[1])) ?? null }
+function isSaved(route: RouteCandidate) { return savedCopy(route) !== null }
 async function saveRoute(route: RouteCandidate) {
-  if (isSaved(route)) { showToast('Saved on this device.'); return }
+  // A saved result's bookmark asks before it deletes, the same question the trash button in the Saved tab asks.
+  const existing = savedCopy(route)
+  if (existing) { askDelete(existing); return }
   const copy = JSON.parse(JSON.stringify(route)) as RouteCandidate
   copy.id = `saved-${crypto.randomUUID()}`
   copy.name = route.turns.reduce((longest, turn) => turn.distanceMeters > longest.distanceMeters ? turn : longest, route.turns[0] ?? { street: 'Bloomfield', distanceMeters: 0 }).street.replace(/ Avenue$/, ' Ave').replace(/ Street$/, ' St') + ' loop'
@@ -130,14 +135,18 @@ async function saveRoute(route: RouteCandidate) {
 function chooseSaved(route: RouteCandidate) { planner.cancel(); savedSelectedId.value = route.id; state.presentation = 'restore'; state.revision++; legendOpen.value = false }
 function rename(route: RouteCandidate) { renamingId.value = route.id; renameValue.value = route.name }
 async function commitRename(route: RouteCandidate) { if (renameValue.value.trim()) route.name = renameValue.value.trim().slice(0, 120); renamingId.value = ''; await persistSaved() }
-async function removeSaved(route: RouteCandidate) {
-  clearTimeout(undoTimer)
-  const index = saved.value.findIndex(item => item.id === route.id); if (index < 0) return
-  deleted.value = { route, index }; saved.value.splice(index, 1)
-  if (savedSelectedId.value === route.id) savedSelectedId.value = saved.value[0]?.id ?? ''
-  state.revision++; await persistSaved(); undoTimer = setTimeout(() => { deleted.value = null }, 5000)
+/** Deleting a saved route waits for confirmation. There is no undo, so the dialog is the only safeguard. */
+function askDelete(route: RouteCandidate) { pendingDelete.value = route }
+const deleteMessage = computed(() => pendingDelete.value ? `${pendingDelete.value.name} will be removed from this device. This can't be undone.` : '')
+async function confirmDelete() {
+  const route = pendingDelete.value
+  pendingDelete.value = null
+  const index = route ? saved.value.findIndex(item => item.id === route.id) : -1
+  if (index < 0) return
+  saved.value.splice(index, 1)
+  if (savedSelectedId.value === route!.id) savedSelectedId.value = saved.value[0]?.id ?? ''
+  state.revision++; await persistSaved()
 }
-async function undoDelete() { if (!deleted.value) return; clearTimeout(undoTimer); saved.value.splice(deleted.value.index, 0, deleted.value.route); deleted.value = null; await persistSaved() }
 async function shareRoute(route: RouteCandidate, copyOnly = false) {
   try {
     const url = `${window.location.origin}/r#${encodeRoute(route)}`
@@ -145,12 +154,27 @@ async function shareRoute(route: RouteCandidate, copyOnly = false) {
     await navigator.clipboard.writeText(url); showToast('Link copied.')
   } catch (error) { showToast(error instanceof Error ? error.message : "Couldn't copy the link.") }
 }
-async function reverseRoute() {
-  if (tab.value === 'saved') { state.error = 'Legal reversal needs the regional routing snapshots.'; return }
-  await planner.run('reverse')
+async function reverseRoute() { await planner.run('reverse') }
+/** Calculates a saved route's legal reverse once, then flips between the two stored directions. The Plan tab's results stay as they are. */
+async function reverseSaved(route: RouteCandidate) {
+  if (reversingId.value) return
+  if (!route.reverse) {
+    reversingId.value = route.id
+    try {
+      const { route: calculated, adjustedForLegality } = await planner.reverseCopy(route)
+      route.reverse = { ...calculated, id: `${route.id}-reverse`, name: route.name }
+      if (adjustedForLegality) showToast('Route adjusted to follow road rules.')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Can't load routes right now.")
+      return
+    } finally { reversingId.value = '' }
+  }
+  route.direction = route.direction === 'reverse' ? 'forward' : 'reverse'
+  if (savedSelectedId.value === route.id) { state.presentation = 'reverse'; state.revision++ }
+  await persistSaved()
 }
 function planOwn() { shared.value = false; state.routes = []; state.selectedId = ''; state.revision++; window.history.replaceState(null, '', '/'); void planner.run() }
-function importStrava() { showToast('Strava import will be available after the routing stage.'); }
+function importStrava() { showToast('Strava imports coming soon.'); }
 
 onMounted(async () => {
   const watchMedia = (query: string, callback: (matches: boolean) => void) => {
@@ -196,7 +220,7 @@ watch([theme, units, reducedMotion, pace, () => state.settings.avoidBusyRoads, (
   if (!import.meta.client || !hydrated.value) return
   try { localStorage.setItem('routelette:preferences:v1', JSON.stringify({ theme: theme.value, units: units.value, reducedMotion: reducedMotion.value, pace, avoidBusyRoads: state.settings.avoidBusyRoads, preferInfrastructure: state.settings.preferInfrastructure })) } catch { /* Settings remain usable without persistence. */ }
 }, { deep: true })
-onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); disposers.forEach(dispose => dispose()); clearTimeout(undoTimer); clearTimeout(toastTimer) })
+onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); disposers.forEach(dispose => dispose()); clearTimeout(toastTimer) })
 </script>
 
 <template>
@@ -220,11 +244,10 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
         </template>
         <template v-else>
           <div class="saved-content"><div class="saved-heading"><p>{{ saved.length }} saved {{ saved.length === 1 ? 'route' : 'routes' }}</p><p>Saved on this device only.</p></div><p v-if="!saved.length" class="empty-saved">Saved routes will appear here.</p>
-            <template v-for="(route, index) in saved" :key="route.id"><div v-if="deleted && deleted.index === index" class="deleted-row"><Icon name="ph:trash" size="16" /><span>{{ deleted.route.name }} deleted</span><button type="button" @click="undoDelete">Undo</button></div><article class="saved-route" :class="{ selected: savedSelectedId === route.id }"><button type="button" class="saved-select" :aria-label="`Select ${route.name}`" :aria-pressed="savedSelectedId === route.id" @click="chooseSaved(route)"><RouteThumbnail :coordinates="route.coordinates" /><span class="saved-details"><span class="saved-name">{{ route.name }}</span><span class="saved-specs"><Icon :name="MODE_ICONS[route.mode]" size="16" /><span>{{ distanceText(route.distanceMeters, units) }} <span class="unit distance-unit">{{ units }}</span></span><span>{{ gainText(route.gainMeters, units) }} <span class="unit">{{ units === 'mi' ? 'ft' : 'm' }}</span></span><span>{{ minutesFor(route.distanceMeters, route.mode, pace) }} <span class="unit">min</span></span></span></span></button>
+            <template v-for="route in saved" :key="route.id"><article class="saved-route" :class="{ selected: savedSelectedId === route.id }"><button type="button" class="saved-select" :aria-label="`Select ${route.name}`" :aria-pressed="savedSelectedId === route.id" @click="chooseSaved(route)"><RouteThumbnail :coordinates="shown(route).coordinates" /><span class="saved-details"><span class="saved-name">{{ route.name }}</span><span class="saved-specs"><Icon :name="MODE_ICONS[shown(route).mode]" size="16" /><span>{{ distanceText(shown(route).distanceMeters, units) }} <span class="unit distance-unit">{{ units }}</span></span><span>{{ gainText(shown(route).gainMeters, units) }} <span class="unit">{{ units === 'mi' ? 'ft' : 'm' }}</span></span><span>{{ minutesFor(shown(route).distanceMeters, shown(route).mode, pace) }} <span class="unit">min</span></span></span></span></button>
               <form v-if="renamingId === route.id" class="rename-editor" @submit.prevent="commitRename(route)"><input v-model="renameValue" aria-label="Route name" maxlength="120" @keydown.esc="renamingId = ''" /><button type="submit">Done</button></form>
-              <div v-if="savedSelectedId === route.id" class="saved-row-actions"><IconButton icon="ph:pencil-simple" label="Rename route" @click="rename(route)" /><IconButton icon="ph:arrows-counter-clockwise" label="Reverse route" @click="reverseRoute" /><IconButton icon="ph:export" label="Share route" @click="shareRoute(route)" /><IconButton icon="ph:trash" label="Delete route" danger @click="removeSaved(route)" /></div>
+              <div v-if="savedSelectedId === route.id" class="saved-row-actions"><IconButton icon="ph:pencil-simple" label="Rename route" @click="rename(route)" /><IconButton icon="ph:arrows-counter-clockwise" label="Reverse route" :disabled="reversingId === route.id" @click="reverseSaved(route)" /><IconButton icon="ph:export" label="Share route" @click="shareRoute(shown(route))" /><IconButton icon="ph:trash" label="Delete route" danger @click="askDelete(route)" /></div>
             </article></template>
-            <div v-if="deleted && deleted.index >= saved.length" class="deleted-row"><Icon name="ph:trash" size="16" /><span>{{ deleted.route.name }} deleted</span><button type="button" @click="undoDelete">Undo</button></div>
           </div>
           <div v-if="state.error" class="error-line" role="status"><Icon name="ph:warning-circle" size="20" /><span>{{ state.error }}</span></div>
           <StravaImportButton :dark="dark" :state="stravaState" @click="importStrava" />
@@ -232,8 +255,9 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
       </template>
       <AppFooter />
     </section>
-    <div v-if="cardsVisible" class="route-cards" aria-label="Route options"><RouteCard v-for="route in state.routes" :key="route.id" :route="route" :selected="route.id === state.selectedId" :hovered="route.id === hoveredRouteId" :saved="isSaved(route)" :units="units" :pace="pace" @select="selectRoute" @preview="hoveredRouteId = $event" @save="saveRoute" @pace="(mode, value) => pace[mode] = value" /></div>
-    <RouteLegend v-if="activeRoute && !(mobile && expanded && tab === 'plan' && !shared)" :route="activeRoute" :units="units" :open="legendOpen" :mobile="mobile" :pace="pace" @toggle="legendOpen = !legendOpen; if (legendOpen && mobile) expanded = false" @highlight="highlighted = $event" />
+    <div v-if="cardsVisible" class="route-cards" aria-label="Route options"><RouteCard v-for="route in state.routes" :key="route.id" :route="route" :selected="route.id === state.selectedId" :hovered="route.id === hoveredRouteId" :saved="isSaved(route)" :units="units" :pace="pace" @select="selectRoute" @preview="hoveredRouteId = $event" @save="saveRoute" @reverse="reverseRoute" @pace="(mode, value) => pace[mode] = value" /></div>
+    <ConfirmDialog :open="pendingDelete !== null" title="Delete this route?" :message="deleteMessage" confirm-label="Delete" @confirm="confirmDelete" @cancel="pendingDelete = null" />
+    <RouteLegend v-if="activeRoute && !(mobile && expanded && tab === 'plan' && !shared)":route="activeRoute" :units="units" :open="legendOpen" :mobile="mobile" :pace="pace" @toggle="legendOpen = !legendOpen; if (legendOpen && mobile) expanded = false" @highlight="highlighted = $event" />
     <Transition name="toast"><div v-if="toast" class="toast-message surface" role="status"><Icon name="ph:info" size="20" /><span>{{ toast }}</span><IconButton icon="ph:x" label="Dismiss message" @click="toast = ''" /></div></Transition>
   </main>
 </template>

@@ -29,7 +29,7 @@ npm run preview
 
 ## Current stage
 
-Routes are calculated in the browser for Pittsburgh and the DC Metro area. Generation, Roll, stops, joint reshaping and legal reversal on a shared route use the regional graph snapshot. The engine also reverses result cards, but the planner has no Reverse control for them yet. Saved-route reversal, the saved-routes novelty penalty, URL persistence and Strava import are not connected yet.
+Routes are calculated in the browser for Pittsburgh and the DC Metro area. Generation, Roll, stops, joint reshaping and legal reversal use the regional graph snapshot. Saved routes can be reversed, and the calculated reverse is kept beside the original. Street addresses work in the start search: Photon finds house numbers, and the US Census geocoder fills gaps inside those two areas. Deleting a saved route asks for confirmation first. The selected result card has a Reverse button beside the bookmark. The Figma RouteCard does not show it yet. The saved-routes novelty penalty, URL persistence and Strava import are not connected yet.
 
 ## Routing
 

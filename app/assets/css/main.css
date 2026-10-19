@@ -55,6 +55,9 @@ h1, h2, p { margin: 0; }
 .map-canvas { position: absolute; inset: 0; }
 .maplibregl-ctrl-attrib { font: 10px/16px 'Instrument Sans', sans-serif; background: var(--bg) !important; color: var(--muted); }
 .maplibregl-ctrl-attrib a { color: inherit; }
+/* MapLibre paints its attribution in black. Dark mode needs the light foreground and an inverted info icon. */
+:root[data-theme='dark'] .maplibregl-ctrl-attrib, :root[data-theme='dark'] .maplibregl-ctrl-attrib a { color: var(--fg); }
+:root[data-theme='dark'] .maplibregl-ctrl-attrib-button { filter: invert(1); }
 .maplibregl-ctrl-bottom-right { bottom: 0; right: 0; }
 .maplibregl-canvas:focus-visible { outline-offset: -4px; }
 .map-status { position: fixed; bottom: 16px; right: 16px; display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 8px; background: var(--bg); color: var(--muted); box-shadow: var(--shadow); }
@@ -67,9 +70,9 @@ h1, h2, p { margin: 0; }
 .header-controls { display: flex; align-items: center; }
 .unit-control { font: 500 10px/12px 'Geist Mono', monospace; text-transform: lowercase; }
 .panel-tabs { position: relative; display: flex; height: 47px; flex: none; align-items: stretch; border-bottom: 1px solid var(--line); }
-.panel-tabs button { display: flex; gap: 8px; align-items: center; padding: 0 8px 12px; margin-top: 8px; margin-right: 12px; color: var(--muted); font-weight: 500; }
-.panel-tabs button span { border-radius: 4px; padding: 2px 6px; margin: -2px -6px; transition: background-color 120ms ease; }
-.panel-tabs button:hover span { background: var(--hover); }
+.panel-tabs button { position: relative; display: flex; gap: 8px; align-items: center; padding: 0 8px 12px; margin-top: 8px; margin-right: 12px; color: var(--muted); font-weight: 500; }
+/* Hover previews the switch with a faded line under the tab, the same spot the active indicator will move to. */
+.panel-tabs button:not(.active):is(:hover, :focus-visible)::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--fg); opacity: 0.25; pointer-events: none; }
 .panel-tabs button.active { color: var(--fg); }
 .tab-indicator { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--fg); pointer-events: none; }
 .tab-indicator.ready { transition: transform 280ms var(--spring), width 280ms var(--spring); }
@@ -114,6 +117,8 @@ h1, h2, p { margin: 0; }
 .distance-sizer-text { visibility: hidden; white-space: pre; }
 .distance-value { width: 100%; height: 64px; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; box-shadow: inset 0 -1px 0 transparent; appearance: none; }
 .distance-value.editing { box-shadow: inset 0 -1px 0 var(--accent); }
+/* The accent underline marks the typing line. The global focus ring would box it in. */
+.distance-value:focus, .distance-value:focus-visible { outline: none; }
 .distance-slider { appearance: none; -webkit-appearance: none; display: block; height: 20px; background: transparent; width: 100%; margin: 0; cursor: pointer; }
 .distance-slider::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--fg) var(--range-fill), var(--hover) var(--range-fill)); }
 .distance-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7px; border: 1.5px solid var(--fg); border-radius: 50%; background: var(--bg); }
@@ -154,6 +159,7 @@ button.roll-button.busy:disabled { background: var(--line-strong); color: var(--
 .route-card-select { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; z-index: 1; }
 .route-card-header { display: flex; align-items: center; justify-content: space-between; height: 16px; }
 .route-card-header h2 { font: 600 12px/16px 'Sora', sans-serif; }
+.route-card-actions { display: flex; align-items: center; }
 .route-card-header .icon-button { position: relative; z-index: 2; width: 28px; height: 28px; margin-right: -6px; }
 .route-card-header .icon-button > .iconify { width: 16px; height: 16px; }
 .route-card-header .save-bookmark.saved,
@@ -210,9 +216,15 @@ button.roll-button.busy:disabled { background: var(--line-strong); color: var(--
 .rename-editor { display: flex; gap: 8px; margin: 8px 0 0 48px; }
 .rename-editor input { width: 100%; background: none; border: 1px solid var(--line-strong); border-radius: 4px; padding: 4px 6px; }
 .rename-editor button { color: var(--accent-text); }
-.deleted-row { display: flex; align-items: center; gap: 8px; height: 40px; font-size: 12px; color: var(--muted); }
-.deleted-row span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.deleted-row button { text-decoration: underline; color: var(--fg); }
+.confirm-dialog { width: min(360px, calc(100vw - 32px)); margin: auto; padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); color: var(--fg); box-shadow: var(--shadow); }
+.confirm-dialog::backdrop { background: #17171a66; }
+.confirm-body { display: grid; gap: 8px; padding: 20px; }
+.confirm-body h2 { font: 600 16px/22px 'Sora', sans-serif; }
+.confirm-body p { font-size: 14px; line-height: 20px; color: var(--muted); }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.confirm-actions button { height: 36px; padding: 0 14px; border-radius: 4px; font: 500 14px/20px 'Instrument Sans', sans-serif; }
+.confirm-cancel { border: 1px solid var(--line-strong); color: var(--fg); }
+.confirm-delete { background: var(--danger); color: var(--inverse); }
 .strava-button { flex: none; height: 52px; border-radius: 4px; margin: 12px 0; background: var(--accent); color: var(--inverse); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .strava-lockup { display: inline-flex; align-items: flex-end; gap: 6px; }
 .strava-label-wrap { display: flex; flex-direction: column; padding-bottom: 1.5px; }

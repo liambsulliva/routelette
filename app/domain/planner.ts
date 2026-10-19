@@ -42,6 +42,10 @@ export interface RouteCandidate {
   settings: PlanningSettings
   provenance: RouteProvenance
   importedFrom?: 'strava'
+  /** Saved routes keep the legal reverse they calculated beside the original, so turning back needs no new calculation. */
+  reverse?: RouteCandidate
+  /** Which way a saved route runs. Routes without a reverse always show the original. */
+  direction?: 'forward' | 'reverse'
 }
 export interface PlanningRequest {
   id: number
