@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { createMapAdapter } from '../map/adapter'
+import { presentationFor } from '../map/presentation'
 import type { MapAdapter, MapScene } from '../map/adapter'
 import type { Coordinates } from '../domain/planner'
 const props = defineProps<{ scene: MapScene; dark: boolean; reducedMotion: boolean; revision: number; presentation: string; mobile: boolean; panelHeight: number; cards: boolean; highlighted: Coordinates[] }>()
@@ -8,7 +9,8 @@ const container = useTemplateRef<HTMLElement>('container')
 const loading = ref(true), failed = ref(false)
 let adapter: MapAdapter | null = null
 function render(reveal = true) {
-  adapter?.render(props.scene, { animate: !props.reducedMotion, fit: reveal && props.presentation === 'generate', reveal: reveal && ['generate', 'restore', 'reverse'].includes(props.presentation), deferAlternates: ['generate', 'restore'].includes(props.presentation), mobile: props.mobile, panelHeight: props.panelHeight, cards: props.cards })
+  const kind = presentationFor(props.presentation, props.reducedMotion)
+  adapter?.render(props.scene, { ...kind, fit: reveal && kind.fit, reveal: reveal && kind.reveal, mobile: props.mobile, panelHeight: props.panelHeight, cards: props.cards })
 }
 onMounted(() => {
   if (!container.value) return

@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { commitDistance, distanceLimits, elevationCaption, gainText, METERS_PER_MILE, paceFor, paceFromInput, paceSuffix, paceText, toDistance } from '../app/domain/units'
+import { commitDistance, DEFAULT_PACE, distanceLimits, elevationCaption, gainText, METERS_PER_MILE, PACE_LIMITS, paceFor, paceFromInput, paceSuffix, paceText, toDistance } from '../app/domain/units'
 import { previewRoutes } from '../app/services/fixture-planner'
 import { decodeRoute, encodeRoute } from '../app/services/share'
 
 describe('pace', () => {
+  it('starts at 5, 9.5 and 20 minutes per mile, and accepts 1 to 120', () => {
+    expect(DEFAULT_PACE).toEqual({ bike: 5, run: 9.5, walk: 20 })
+    expect(PACE_LIMITS).toEqual({ minimum: 1, maximum: 120 })
+  })
   it('stores minutes per mile and shows the same pace per kilometer', () => {
     expect(paceFor(9.5, 'mi')).toBe(9.5)
     expect(paceFor(9.5, 'km')).toBeCloseTo(9.5 / 1.609344)

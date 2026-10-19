@@ -1,24 +1,16 @@
 import { REGIONS } from '../../scripts/graph/regions'
+import { censusPlace } from '../utils/geocode'
+import type { CensusMatch } from '../utils/geocode'
 
 interface PhotonFeature {
   properties?: { osm_id?: number; name?: string; street?: string; housenumber?: string; city?: string; state?: string }
   geometry?: { coordinates?: number[] }
-}
-interface CensusMatch {
-  matchedAddress: string
-  coordinates: { x: number; y: number }
-  addressComponents: { fromAddress: string; preDirection: string; streetName: string; suffixType: string; suffixDirection: string; city: string }
 }
 interface Candidate { place: { id: string; label: string; coordinates: [number, number] }; score: number; exact: boolean; local: boolean }
 
 const CENSUS_URL = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress'
 // Census answers a numbered address only with a city or state, so typed addresses without one try each launch region.
 const CENSUS_REGIONS = ['Pittsburgh, PA', 'Washington, DC']
-// Census writes street parts in capitals and abbreviations. Photon spells them out, so the labels match.
-const CENSUS_WORDS: Record<string, string> = {
-  N: 'North', S: 'South', E: 'East', W: 'West', NE: 'Northeast', NW: 'Northwest', SE: 'Southeast', SW: 'Southwest',
-  AVE: 'Avenue', ST: 'Street', BLVD: 'Boulevard', RD: 'Road', DR: 'Drive', LN: 'Lane', CT: 'Court', PL: 'Place', PKWY: 'Parkway', TER: 'Terrace', HWY: 'Highway', WAY: 'Way', CIR: 'Circle', SQ: 'Square',
-}
 // Expands the short forms people type, so "Ave NW" and "Avenue Northwest" compare equal.
 const EXPANSIONS: Record<string, string> = {
   ave: 'avenue', av: 'avenue', st: 'street', blvd: 'boulevard', rd: 'road', dr: 'drive', ln: 'lane', ct: 'court', pl: 'place', pkwy: 'parkway', ter: 'terrace', hwy: 'highway',
@@ -32,10 +24,6 @@ function words(text: string): string[] {
 function parseAddress(q: string) {
   const match = /^(\d+[a-z]?)\s+(.+)$/i.exec(q.split(',')[0] ?? '')
   return match ? { number: match[1]!.toLowerCase(), words: words(match[2]!) } : null
-}
-/** Title case for Census output, which arrives in capitals. */
-function title(text: string): string {
-  return text.toLowerCase().replace(/\b[a-z]/g, letter => letter.toUpperCase())
 }
 function inLaunchRegion(lon: number, lat: number): boolean {
   return REGIONS.some(({ bounds: [west, south, east, north] }) => lon >= west && lon <= east && lat >= south && lat <= north)
@@ -58,15 +46,7 @@ async function fromCensus(address: string): Promise<Candidate[]> {
   const response = await $fetch<{ result?: { addressMatches?: CensusMatch[] } }>(CENSUS_URL, {
     query: { address, benchmark: 'Public_AR_Current', format: 'json' }, timeout: 5000,
   })
-  return (response.result?.addressMatches ?? []).slice(0, 2).map(match => {
-    const a = match.addressComponents
-    const street = [a.preDirection, a.streetName, a.suffixType, a.suffixDirection].filter(Boolean)
-      .map(part => CENSUS_WORDS[part] ?? title(part)).join(' ')
-    const x = match.coordinates.x, y = match.coordinates.y
-    // fromAddress is where the block's range starts. The matched address carries the number the user typed.
-    const house = match.matchedAddress.split(' ')[0]!
-    return { place: { id: `census-${x},${y}`, label: `${house} ${street}, ${title(a.city)}`, coordinates: [x, y] }, score: 15, exact: true, local: true }
-  })
+  return (response.result?.addressMatches ?? []).slice(0, 2).map(match => ({ place: censusPlace(match), score: 15, exact: true, local: true }))
 }
 async function censusCandidates(q: string): Promise<Candidate[]> {
   const addresses = q.includes(',') ? [q] : CENSUS_REGIONS.map(region => `${q}, ${region}`)

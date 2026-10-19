@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createPlanner } from '../app/domain/controller'
+import { createPlanner, noRoutesShown } from '../app/domain/controller'
 import { initialSettings, PlanningFailure } from '../app/domain/planner'
 import type { PlanningRequest, PlanningResult, PlanningService } from '../app/domain/planner'
 import { PREVIEW_START, previewRoutes } from '../app/services/fixture-planner'
@@ -91,6 +91,25 @@ describe('planning orchestration', () => {
     expect(planner.state.routes).toHaveLength(3)
     expect(planner.state.elevationAvailable).toBe(false)
     expect(planner.state.settings.elevation).toBe('hilly')
+  })
+
+  it('treats an empty generation as a result, not an error, so the card row can say so', async () => {
+    const fake = controlledService(), planner = createPlanner(fake.service, settings())
+    planner.load(previewRoutes())
+    const pending = planner.change({ elevation: 'custom', customGainMeters: 500 })
+    fake.requests[0]!.resolve({ ...result(), routes: [] }); await pending
+    expect(planner.state.routes).toEqual([])
+    expect(planner.state.error).toBe('')
+    expect(noRoutesShown(planner.state)).toBe(true)
+  })
+
+  it('hides the no-routes message before any generation, while generating, and after a failure', async () => {
+    const fake = controlledService(), planner = createPlanner(fake.service, settings())
+    expect(noRoutesShown(planner.state)).toBe(false)
+    const pending = planner.run()
+    expect(noRoutesShown(planner.state)).toBe(false)
+    fake.requests[0]!.reject(new PlanningFailure('no-route', 'Something failed')); await pending
+    expect(noRoutesShown(planner.state)).toBe(false)
   })
 
   it('does not pad a response with duplicate routes', async () => {

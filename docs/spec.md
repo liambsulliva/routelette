@@ -30,6 +30,7 @@ The name is route plus roulette.
 - **Quiet surface, loud numbers.** Neutral charcoal and white everywhere. Copper is kept for a few things: the big numbers, the selected route (its line, marker, card outline and card text), the selected mode, the Roll button and the logo. Red is for errors only.
 - **Floating panels over a full-bleed map.** The planning panel, route cards and legend float above the map with the same surface: `bg` fill, `line` hairline, `Elevation/Panel` shadow, and 16 px corners with 60% smoothing, matching macOS 27 windows.
 - **Icons do the talking.** Every control leads with an icon. Text appears in labels, tooltips and numbers.
+- **Text selection is light gray.** Selected text uses the `selection` token, a light gray in both themes, with `selection-text` for contrast. It replaces the browser's blue.
 
 ### 1.1 Color tokens
 
@@ -89,7 +90,7 @@ Spacing scale 4, 8, 12, 16, 24, 32, 48, 64. Radius 4 for controls, 16 with 60% s
 
 ### 1.5 Logo
 
-Placeholder: a wheel that reads as both a bike wheel and a roulette wheel. A copper ring with eight copper spokes that stop just short of a black hub. The wordmark "Routelette" in Sora Bold sits beside it, trimmed to cap height so the letters center on the hub. Center the actual wheel artwork in the lockup's 28 px mark wrapper. Its 32 px SVG sits at y = -2 px so the hub and text share a vertical center. The mark alone is the favicon.
+Placeholder: a wheel that reads as both a bike wheel and a roulette wheel. A copper ring with eight copper spokes that stop just short of a black hub. The wordmark "Routelette" in Sora Bold sits beside it, trimmed to cap height so the letters center on the hub. Center the actual wheel artwork in the lockup's 28 px mark wrapper. Its 32 px SVG sits at y = -2 px so the hub and text share a vertical center. The mark alone is the favicon. The lockup is not a link. Clicking it does nothing, so it never reloads the page.
 
 ## 2. Modes
 
@@ -100,11 +101,11 @@ Each route is planned for one mode. The mode sets the following:
 | Default distance | 15 mi | 5 mi | 2 mi |
 | Range | 5 to 60 mi | 1 to 26 mi | 0.5 to 10 mi |
 | Slider step | 1 mi | 0.5 mi | 0.25 mi |
-| Default pace | 12 mph | 9:30 /mi | 20:00 /mi |
+| Default pace | 5 min/mi (12 mph) | 9.5 min/mi | 20 min/mi |
 | Allowed ways | Roads, cycleways, tracks. No steps, no footway unless `bicycle=yes`. | Everything walkable, including trails and paths. | Same as run. |
 | Second preference | Prefer bike lanes | Prefer sidewalks | Prefer sidewalks |
 
-Each mode also has a surface preference: Paved, Mixed (default) or Trail. Pace is edited from the time estimate on a route card and saved per mode.
+Each mode also has a surface preference: Mixed (default), Paved or Trail. Pace is set on first open (section 4.7) and changed on a route card, where the clock swaps the time for a pace box (section 5.1). It is saved per mode.
 
 Switching mode while routes are on screen regenerates them with the same seed and the new mode's settings. The distance carries over if it fits the new range, otherwise it is clamped.
 
@@ -123,7 +124,7 @@ Panel, top to bottom:
 5. **Stops.** Up to 5 checkpoints and "Add a stop".
 6. **Distance.** Big copper number with its unit suffix, neutral slider below.
 7. **Elevation.** Five tiles and a caption (section 4.5).
-8. **Surface.** Paved, Mixed and Trail in matching icon tiles, directly below Elevation (section 4.6).
+8. **Surface.** Mixed, Paved and Trail in matching icon tiles, directly below Elevation (section 4.6).
 9. **Preferences.** Two switches, both on by default (section 4.7).
 10. **Roll.** One large copper button.
 11. **Footer.** "Icons by Phosphor · Map data © OpenStreetMap · Tiles by OpenFreeMap · Search by Photon".
@@ -134,7 +135,7 @@ The three route cards float in a row along the bottom of the map, 16 px from the
 
 ### 3.1 Empty state
 
-Before a start is set, show the map and planning controls without a floating prompt or onboarding explainer. Roll is visibly disabled. Setting a start moves the camera to it.
+Before a start is set, show the map and planning controls without a floating prompt or onboarding explainer. Roll is visibly disabled. Setting a start moves the camera to it. The one-time usual-pace question (section 4.7) is the only thing shown on first open. It asks for numbers and explains nothing.
 
 ## 4. Planning
 
@@ -151,7 +152,7 @@ Optional checkpoints the loop must pass through. Up to 5.
 - Add one from a search result, with "Add a stop" followed by a map click, or with a long press on mobile.
 - The app orders stops by bearing around the start so the loop doesn't cross itself. Drag a stop row to reorder the list, or drag its map marker to move that checkpoint. Either drag locks the order. The lock button does the same without moving a stop.
 - A lock button beside the Stops heading enables manual ordering. Adding a stop from the sidebar triggers generation and the route-drawing animation through the new point.
-- If the shortest loop through every stop is more than 10% over the target, Routelette shows only that loop, explains it ("Your stops need at least 7.2 mi") and disables Roll.
+- If the shortest loop through every stop is more than 10% over the target, Routelette shows only that loop, explains it ("Your stops need at least 7.2 mi") and disables Roll. That loop must also pass the elevation and surface rules (sections 4.5 and 4.6). If it doesn't, no loop is shown, the explanation still appears, and Roll stays disabled.
 
 ### 4.3 Distance
 
@@ -165,7 +166,7 @@ Miles or kilometers, defaulting from the browser locale. Elevation follows: feet
 
 ### 4.5 Elevation
 
-Gain scales with distance, so presets are rates. The options are a row of five icon tiles. A 24 px row under the picker stays in place for every option, so changing a choice does not shift the controls. Any shows "Any: Elevation is not scored". Flat, Hilly and Steep show their total gain range for the current distance. Each range has 50 ft of grace at its edges, and Custom allows 50 ft either side of the number typed. A route just outside a range still counts. A route outside it, grace included, is not shown.
+Gain scales with distance, so presets are rates. The options are a row of five icon tiles. A 24 px row under the picker stays in place for every option, so changing a choice does not shift the controls. Any shows "Any: Elevation is not scored". Flat, Hilly and Steep show their total gain range for the current distance. Each range has 50 ft of grace at its edges, and Custom allows 50 ft either side of the number typed. A route just outside a range still counts. A route outside it, grace included, is not shown. The caption shows each range without grace.
 
 | Option | Rate | Caption at 5 mi |
 |---|---|---|
@@ -181,7 +182,7 @@ If elevation data is unavailable, gray out the Flat, Hilly, Steep and Custom but
 
 ### 4.6 Surface
 
-Paved, Mixed and Trail sit directly below Elevation. They reuse the elevation tile design and its neutral selection border. Align them to the first three columns of Elevation's five-column grid, with the same gaps at each panel width. The Phosphor icons are `road-horizon`, `shuffle` and `tree-evergreen`. Mixed is selected by default.
+Mixed, Paved and Trail sit directly below Elevation, in that order. They reuse the elevation tile design and its neutral selection border. Align them to the first three columns of Elevation's five-column grid, with the same gaps at each panel width. The Phosphor icons are `road-horizon`, `shuffle` and `tree-evergreen`. Mixed is selected by default.
 
 The surface choice allows a mile of the other surface. Trail accepts a route with up to a mile of paved road, so a path reached by a paved road still shows up. Paved accepts a route with up to a mile of trail or unpaved path. Mixed accepts any route. A route that breaks its rule is not shown.
 
@@ -189,7 +190,7 @@ The surface choice allows a mile of the other surface. Trail accepts a route wit
 
 Two switches, both on by default and remembered per device.
 
-**Usual pace.** On first open, Routelette asks for the average pace for Biking, Running and Walking, in min/mi or min/km to match the units. The fields start at the defaults, 5, 9.5 and 20 min/mi. Continue saves them on this device, and the setup does not appear again. Routes compute their time from these paces. On a route card, the clock swaps the time for a pace box in the same row, reading "9.5 min/mi" or "9.5 min/km". Enter or clicking away saves, and Escape cancels.
+**Usual pace.** On first open, Routelette asks for the average pace for Biking, Running and Walking, in min/mi or min/km to match the units. The fields start at the defaults, 5, 9.5 and 20 min/mi. Continue saves them on this device, and the setup does not appear again. The setup writes its own flag, `routelette:pace-setup:v1`, so it is asked once per device. Routes compute their time from these paces. On a route card, the clock swaps the time for a pace box in the same row, reading "9.5 min/mi" or "9.5 min/km". Enter or clicking away saves, and Escape cancels.
 
 - **Avoid busy roads.** Keeps loops off arterials. Crossing them is fine.
 - **Prefer sidewalks** (run, walk) or **Prefer bike lanes** (bike). The label follows the mode.
@@ -210,7 +211,9 @@ Existing results remain visible during generation. Clicking or tapping one cance
 
 Up to three cards titled Route 1, 2 and 3 float in a row along the bottom of the map. Show only the available routes. Do not add duplicate cards or explain why fewer than three are available. Each shows distance as a big number, plus gain and estimated time, and a save button. A click or keyboard activation selects a card. Hovering a card, its route line, or its numbered marker fills that card with the same gray as an icon button and lightens that route's line. Hover does not change the selection. The selected card keeps a 1.5 px copper outline and copper text. Saving fills the bookmark glyph and leaves the button background clear. A filled bookmark reads "Delete saved route". Clicking it opens the same delete dialog as the Saved tab (see 6). The selected card also has a Reverse icon button beside the bookmark, with the tooltip "Reverse route" above it. It runs the reverse in 5.5 on that card.
 
-Clicking a time estimate opens a small inline pace editor beside it. Save the value per mode and update time estimates from that pace. Use an inline editor rather than a popup.
+Clicking the clock on a card replaces its time with a pace box in the same row, labelled min/mi or min/km to match the units. Enter or clicking away saves the pace for that card's mode, and Escape cancels. The time updates from the new pace. Use an inline editor rather than a popup.
+
+When no route is available, the card row shows "No routes available" where the cards would be. No route cards appear and no error line is shown.
 
 ### 5.2 Route lines
 
@@ -242,7 +245,7 @@ Each row (`SavedRouteRow`) shows:
 - **Name.** In `Title`.
 - **Specs.** The mode icon, then distance, gain and estimated time as `Number/S` values with mono unit suffixes. The time uses the pace saved for that mode.
 
-Clicking a row selects it. The map then shows that route alone, in copper, with its start marker and legend chip ("16 turns · 115 ft"). No result cards appear in this tab.
+Clicking a row selects it. The map then shows that route alone, in copper, with its start marker and legend chip ("16 turns · 115 ft"). The camera refits to the route, and the line draws in from its start. No result cards appear in this tab.
 
 - **Selected row.** Copper outline, copper name and numbers, copper thumbnail line, plus a row of icon buttons with tooltips: Rename, Reverse, Share, Delete. Rename turns the title into a text box in place. Enter or clicking away saves, and Escape cancels. Delete is the only red control.
 - **Name.** Defaults to the street the route spends the most distance on, plus "loop": "Kincaid St loop". Renaming edits the name in place ("Saturday long run").
@@ -250,9 +253,11 @@ Clicking a row selects it. The map then shows that route alone, in copper, with 
 - **Mobile.** The bar opens to half height so the selected route stays visible above it; the list scrolls.
 - **Storage.** IndexedDB on this device only. No accounts. A saved route keeps its geometry, not its seed, so later changes to the map data don't alter it. A legal reverse can change the geometry, so retain the original and the calculated reverse rather than storing only a direction flag.
 
-Saved routes also nudge new results somewhere new: candidates that reuse roads from saved routes rank lower. There is no toggle for this.
+Saved routes also nudge new results somewhere new: candidates that reuse roads from saved routes rank lower. There is no toggle for this. **Not built yet.** Generation does not read saved routes, so nothing ranks lower.
 
 ### 6.1 Import from Strava
+
+**Status: not built.** The button currently shows "Strava imports coming soon." and nothing else happens. The rest of this section is the planned flow.
 
 A one-time import of recent loops from Strava. It doesn't stay connected and doesn't sync.
 
@@ -326,7 +331,7 @@ Keep graph access behind a replaceable provider. Each planning request uses one 
 
 Kept tags: `highway`, `surface`, `access`, `foot`, `bicycle`, `sidewalk`, `sidewalk:left`, `sidewalk:right`, `sidewalk:both`, `footway`, `cycleway`, `cycleway:left`, `cycleway:right`, `cycleway:both`, `bicycle_road`, `lit`, `maxspeed`, `lanes`, `name`.
 
-Also retain ordered way nodes and original way IDs, direction tags including `oneway`, `oneway:bicycle`, `oneway:foot` and `junction`, access hierarchy tags including `vehicle`, and directional or conditional access variants. Keep tagged barrier nodes and their access rules. Fetch turn-restriction relations with their ordered members, via nodes or ways, mode exceptions and conditional restrictions. Tile boundaries must preserve the information needed to resolve those relations. Routing results record graph coverage and data age so missing graph data cannot be mistaken for no available route.
+Also retain ordered way nodes and original way IDs, direction tags including `oneway`, `oneway:bicycle`, `oneway:foot` and `junction`, access hierarchy tags including `vehicle`, and directional or conditional access variants. Keep tagged barrier nodes and their access rules. Fetch turn-restriction relations with their ordered members, via nodes or ways, mode exceptions and conditional restrictions. Tile boundaries must preserve the information needed to resolve those relations. Routing results record graph coverage and data age so missing graph data cannot be mistaken for no available route. **Not built yet:** results record the graph version and region, but not data age.
 
 **Snapshot build.** `npm run graph:build` reads Geofabrik PBF extracts (Pennsylvania for Pittsburgh; DC, Maryland and Virginia for the DC Metro area) because the public Overpass server rejects bulk automated queries. The launch boxes are lon -80.20 to -79.75, lat 40.30 to 40.62 for Pittsburgh and lon -77.40 to -76.80, lat 38.70 to 39.15 for DC Metro. Ways split at junctions, barriers and restriction via nodes. Tiles are 0.05 degrees square, and each edge lives in the tile of its first node. The build derives per-mode access and direction, cost flags and barrier rules from the tags above. Turn restrictions apply to bicycles only, honoring `restriction:bicycle` and `except=bicycle`. Conditional restrictions are not applied. The first build is 237 tiles and 78.5 MB.
 
@@ -371,27 +376,27 @@ A* finds paths between two points, so loops are built from legs:
 2. Snap each waypoint to the graph. Snap to corners, not mid-block, because a mid-block waypoint makes the loop walk to it and turn back.
 3. Run A* leg by leg, start to start. Edges already used in this loop get a penalty, so legs don't retrace each other.
 4. Remove out-and-back spurs: any stretch that leaves a point and returns to it while enclosing almost no area.
-5. Scale the radius and retry until the total lands within ±10%.
+5. Scale the radius and retry until the total lands within ±5%. A route still more than 10% off target is marked off target.
 
 Spur removal also catches an out-and-back that returns on a parallel way, such as up one sidewalk and back down the other. Stops, starts and generated waypoints snap only to the largest connected part of the network. An unnamed sidewalk takes the name of the street beside it in the turn list.
 
 Reverse and joint edits route through anchor junctions along the existing line, and roads on that line cost 35% of normal, so the result stays on it wherever the rules allow.
 
-Each seed produces 12 candidates. Score each by distance error, overlap and out-and-back stretches, the mode's cost, elevation fit, and overlap with the other picks. Then re-rank on this device using the saved-routes novelty penalty and keep up to 3 distinct routes. If only one or two qualify, return those without a limited-results explanation.
+Each seed produces 12 candidates. Score each by distance error, overlap and out-and-back stretches, the mode's cost, elevation fit, and overlap with the other picks. Then re-rank on this device using the saved-routes novelty penalty (not built yet) and keep up to 3 distinct routes. Only candidates inside the elevation band and the surface rule qualify (sections 4.5 and 4.6). If one or two qualify, return those without a limited-results explanation. If none do, return no routes, and the card row says "No routes available".
 
-The seeded generator makes results repeatable: same start, settings, seed and map data, same routes. The URL carries all of that so a reload restores the screen. Map data can change between visits, so this is close, not exact, and that is acceptable.
+The seeded generator makes results repeatable: same start, settings, seed and map data, same routes. The URL is meant to carry all of that so a reload restores the screen. **Not built yet:** settings are not written to the URL. Map data can change between visits, so this is close, not exact, and that is acceptable.
 
 Design-time note: with both preferences on, quiet loops from 4900 Friendship Ave came out at about 1.5 mi per neighborhood quadrant (Garfield, Friendship, west Bloomfield). Longer targets will mostly come from loops that cross a neighborhood boundary, so overlap with the other picks matters more there.
 
 ### 9.4 Elevation
 
-AWS Terrarium DEM tiles, sampled in the worker every 20 m along a route. Gain is smoothed with a small threshold so noise doesn't inflate it.
+AWS Terrarium DEM tiles, sampled in the worker every 20 m along a route. Gain is smoothed with a small threshold so noise doesn't inflate it. Elevation also steers the search while candidates are scored. The finished loop's gain is checked against its band, grace included, and a loop outside it is dropped.
 
 ## 10. Map and data
 
 - **Renderer:** MapLibre GL JS behind a small `MapAdapter` interface, written by us, so tests can swap in a fake.
 - **Tiles:** OpenFreeMap. Positron for light, Dark for dark, recolored toward the `Map/*` tokens.
-- **Search:** Photon, through a server route that debounces, caches and allows swapping providers later. Results with the typed house number and street rank first. When Photon has no exact house match inside the launch regions, the US Census geocoder supplies one, queried for Pittsburgh and Washington, DC. Reverse geocoding goes through the same route and also names the legs in the turn list.
+- **Search:** Photon, through a server route that debounces, caches and allows swapping providers later. Results with the typed house number and street rank first. When Photon has no exact house match inside the launch regions, the US Census geocoder supplies one, queried for Pittsburgh and Washington, DC. Reverse geocoding goes through the same route and also names the legs in the turn list. Census results are labelled with the house number that was typed, not the start of the block's address range.
 
 ## 11. Motion
 
@@ -409,6 +414,7 @@ Routelette's own:
 | Routes appear | The selected line draws from the start back into it over 300 ms. Then the alternate routes fade in over 200 ms, fully drawn, to 55% opacity. |
 | Selecting a card | A click selects the route and restyles the lines without redraw. Hover only lightens the line and fills the card gray. During generation, a click cancels the pending request and redraws the chosen stored route. |
 | Reverse | The selected line redraws in its new direction. |
+| Selecting a saved route | The camera refits to the route, then the line draws in from its start over 300 ms. With reduced motion, the camera moves at once and the line appears whole. |
 | Roll | Spinner replaces the dice and label while generating, on a grey button. Hover moves the dice left 0.25 rem and rotates it 90 degrees over 300 ms. No loading tumble. |
 | Camera | Ease-out fit to the results. Short fly when the start changes. |
 | Legend | Drops down from the chip on desktop, rises from it on mobile. |
@@ -429,8 +435,8 @@ Errors use one line in the panel plus an action. No modals for errors. The one e
 |---|---|---|
 | Location denied | "Location is off. Search for a start instead." | Focuses search |
 | Location unavailable or timed out | "Couldn't find your location. Search for a start instead." | Focuses search |
-| No loop in range | "No loops near 5 mi from here. Closest is 6.1 mi." | Show it · Try 6 mi |
-| No quiet loop | "No quiet loops near 5 mi from here." | Allow busy roads |
+| No loop in range | "No loops near 5 mi from here. Closest is 6.1 mi." | Show it · Try 6 mi (actions not built yet) |
+| No quiet loop (not built yet) | "No quiet loops near 5 mi from here." | Allow busy roads (not built yet) |
 | Map data unavailable | "Can't load map data right now." | Retry |
 | Elevation data unavailable | "Unavailable" on disabled elevation choices and missing gain values | Retry or Any |
 | Start off the network | "Moved 40 ft to the nearest path." | None |
@@ -441,11 +447,12 @@ Errors use one line in the panel plus an action. No modals for errors. The one e
 
 | What | Where |
 |---|---|
-| Start, mode, distance, elevation, stops, joints, seed | URL query |
+| Start, mode, distance, elevation, stops, joints, seed | URL query (not built yet) |
 | Saved routes, including Strava imports and the ids of imported activities | IndexedDB |
 | Strava tokens | Nowhere. Exchanged, used once and revoked inside a single server request |
 | Graph tiles | IndexedDB, plus Nitro cache on the server |
 | Theme, units, reduced motion, pace per mode, preference switches | localStorage |
+| Usual-pace setup done flag | localStorage, `routelette:pace-setup:v1` |
 
 ## 14. Stack
 
@@ -462,8 +469,17 @@ Use OpenFreeMap for map tiles, Photon for search and Terrarium for elevation. Ke
 Vitest for everything.
 
 - **Engine:** graph building, A*, loop generation, spur removal, scoring, both preference multipliers, elevation gain, unit conversion. Runs against a small OSM extract checked into the repo, so a given seed always gives the same answer.
-- **Flows:** `@nuxt/test-utils` in jsdom, with the fake `MapAdapter`. Covers set start, pick mode, type a distance past the slider, toggle each preference, roll, select, add stop, add joint, reverse, save, rename, delete with undo, share.
-- **Strava import:** the server route against recorded Strava responses (no network). Covers state check, consent without `activity:read`, sport-type mapping, the loop rule including privacy-zone gaps, duplicate skipping, 429 handling, and that the token is revoked and never returned to the browser.
+- **Component and unit tests:** Vitest with `@vue/test-utils` in jsdom. `tests/setup.ts` provides the Nuxt auto-imports the components use and a `<dialog>` stub, since jsdom has no `showModal`. Whole-app flows (set start, roll, joints, reverse, share) have no test yet, and neither does the map adapter, which needs a fake `MapAdapter`.
+- **Pinned by tests:**
+  - Elevation bands with 50 ft of grace, Custom at the entered number ±50 ft, the hard limits on loops, and the surface rule with a mile of grace: `tests/engine.test.ts` ("grace windows", "hard limits on generated loops").
+  - An empty generation is a result, not an error, and "No routes available" shows only after one: `tests/planner.test.ts`.
+  - Pace defaults, limits, and conversions between min/mi and min/km: `tests/units-and-sharing.test.ts`.
+  - The usual-pace setup opens on first open only, and unreadable storage keeps it closed: `tests/preferences.test.ts`.
+  - Location messages and the 20-second timeout: `tests/location.test.ts`.
+  - Census labels spell out directions and street types, and keep the matched point's coordinates and id: `tests/census.test.ts`. The house-number label has no test right now.
+  - Selecting a saved route refits the camera and reveals the route, and reduced motion skips the animation: `tests/presentation.test.ts`.
+  - Card pace editing, the usual-pace dialog, and in-place rename: `tests/components/route-card.test.ts`, `tests/components/pace-setup.test.ts`, `tests/components/saved-route-row.test.ts`.
+- **Strava import (not built yet):** the server route against recorded Strava responses (no network). Covers state check, consent without `activity:read`, sport-type mapping, the loop rule including privacy-zone gaps, duplicate skipping, 429 handling, and that the token is revoked and never returned to the browser.
 
 ## 16. Not in v1
 

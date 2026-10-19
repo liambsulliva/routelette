@@ -140,7 +140,15 @@ export function createMapAdapter(container: HTMLElement, events: MapEvents, dark
         : { top: 100, right: 120, bottom: options.cards ? 220 : 80, left: 432 }
       const availableHeight = container.clientHeight - padding.top - padding.bottom
       if (availableHeight < 80) padding.bottom = Math.max(32, container.clientHeight - padding.top - 100)
-      if (options.animate) { fitting = true; map.once('moveend', () => { if (version === cameraVersion) fitting = false; reveal(version) }); map.fitBounds(bounds, { padding, maxZoom: 15.4, duration: 450 }) }
+      if (options.animate) {
+        fitting = true
+        let revealed = false
+        const revealOnce = () => { if (revealed) return; revealed = true; if (version === cameraVersion) fitting = false; reveal(version) }
+        map.once('moveend', revealOnce)
+        // A fit that leaves the camera where it already is fires no moveend, so the reveal also runs after the fit's duration.
+        setTimeout(revealOnce, 600)
+        map.fitBounds(bounds, { padding, maxZoom: 15.4, duration: 450 })
+      }
       else { map.fitBounds(bounds, { padding, maxZoom: 15.4, duration: 0 }); reveal(version) }
     } else reveal(version)
   }

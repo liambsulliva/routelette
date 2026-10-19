@@ -17,7 +17,7 @@ const elevations: { value: ElevationChoice; label: string; icon: string }[] = [
   { value: 'custom', label: 'Custom', icon: 'ph:sliders-horizontal' },
 ]
 const surfaces: { value: Surface; label: string; icon: string }[] = [
-  { value: 'paved', label: 'Paved', icon: 'ph:road-horizon' }, { value: 'mixed', label: 'Mixed', icon: 'ph:shuffle' }, { value: 'trail', label: 'Trail', icon: 'ph:tree-evergreen' },
+  { value: 'mixed', label: 'Mixed', icon: 'ph:shuffle' }, { value: 'paved', label: 'Paved', icon: 'ph:road-horizon' }, { value: 'trail', label: 'Trail', icon: 'ph:tree-evergreen' },
 ]
 const caption = computed(() => elevationCaption(props.settings.elevation, props.settings.distanceMeters, props.units))
 function setMode(mode: Mode) { emit('change', { mode, distanceMeters: clampToMode(props.settings.distanceMeters, mode) }) }

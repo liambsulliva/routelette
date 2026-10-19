@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import type { Coordinates, Mode, Place, PlanningSettings, RouteCandidate, Units } from './domain/planner'
 import { MODE_ICONS } from './domain/planner'
-import { createPlanner } from './domain/controller'
-import { distanceText, gainText, minutesFor, toDistance, METERS_PER_MILE } from './domain/units'
+import { createPlanner, noRoutesShown } from './domain/controller'
+import { DEFAULT_PACE, distanceText, gainText, minutesFor, toDistance, METERS_PER_MILE } from './domain/units'
+import { LOCATE_OPTIONS, locationErrorMessage } from './domain/location'
+import { needsPaceSetup, PACE_SETUP_KEY } from './domain/preferences'
 import { createFixturePlanner, createUnavailablePlanner, PREVIEW_START, PREVIEW_STOP, previewRoutes, previewSavedRoutes } from './services/fixture-planner'
 import { createSavedRoutes } from './services/saved-routes'
 import { encodeRoute, decodeRoute } from './services/share'
 import { createWorkerPlanner } from './services/worker-planner'
 
-/** Written when the usual-pace setup is confirmed. Until it exists, the setup opens on load. */
-const PACE_SETUP_KEY = 'routelette:pace-setup:v1'
 const config = useRuntimeConfig()
 const fixtureMode = config.public.fixtureMode === true || String(config.public.fixtureMode) === 'true'
 const planner = createPlanner(fixtureMode ? createFixturePlanner() : config.public.graphManifestUrl ? createWorkerPlanner(String(config.public.graphManifestUrl)) : createUnavailablePlanner())
@@ -17,9 +17,9 @@ const { state, selected } = planner
 const tab = ref<'plan' | 'saved'>('plan'), shared = ref(false), expanded = ref(false), legendOpen = ref(false)
 const theme = ref<'light' | 'dark' | 'system'>('system'), systemDark = ref(false), units = ref<Units>('mi'), reducedMotion = ref(false)
 const dark = computed(() => theme.value === 'dark' || theme.value === 'system' && systemDark.value)
-const pace = reactive<Record<Mode, number>>({ bike: 5, run: 9.5, walk: 20 })
+const pace = reactive<Record<Mode, number>>({ ...DEFAULT_PACE })
 const mobile = ref(false), panelHeight = ref(94), placing = ref<'start' | 'stop' | null>(null), locating = ref(false)
-const saved = ref<RouteCandidate[]>([]), savedSelectedId = ref(''), renamingId = ref(''), renameValue = ref(''), toast = ref('')
+const saved = ref<RouteCandidate[]>([]), savedSelectedId = ref(''), renamingId = ref(''), toast = ref('')
 const pendingDelete = ref<RouteCandidate | null>(null), hydrated = ref(false), paceSetupOpen = ref(false)
 const highlighted = ref<Coordinates[]>([]), hoveredRouteId = ref(''), stravaState = ref<'idle' | 'loading' | 'done'>('idle'), reversingId = ref('')
 const panel = useTemplateRef<HTMLElement>('panel')
@@ -36,14 +36,15 @@ const visibleRoutes = computed(() => tab.value === 'saved' && !shared.value ? (a
 const activeRoute = computed(() => tab.value === 'saved' && !shared.value ? (activeSaved.value ? shown(activeSaved.value) : null) : selected.value)
 const cardsVisible = computed(() => !shared.value && tab.value === 'plan' && state.routes.length > 0 && !(mobile.value && expanded.value))
 // The last plan finished as a generate that found nothing. Errors keep their own message in the panel.
-const noRoutes = computed(() => !shared.value && tab.value === 'plan' && !state.busy && !state.error && state.routes.length === 0 && state.presentation === 'generate')
+const noRoutes = computed(() => !shared.value && tab.value === 'plan' && noRoutesShown(state))
 const scene = computed(() => ({
   routes: visibleRoutes.value, selectedId: activeRoute.value?.id ?? '', hoveredId: hoveredRouteId.value,
   start: tab.value === 'saved' ? activeSaved.value?.settings.start ?? null : state.settings.start,
   stops: tab.value === 'saved' ? [] : state.settings.stops,
   joints: tab.value === 'saved' ? [] : state.settings.joints,
 }))
-const sceneRevision = computed(() => state.revision + (tab.value === 'saved' ? saved.value.length + saved.value.findIndex(r => r.id === savedSelectedId.value) + 1000 : 0))
+// A plain counter. Adding the saved-row index let a move up one row cancel the bump out, and the map skipped the redraw.
+const sceneRevision = computed(() => state.revision)
 function showToast(message: string) { toast.value = message; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toast.value = '' }, 5000) }
 watch(() => state.toast, message => { if (message) { showToast(message); state.toast = '' } })
 const noticeText = computed(() => state.notices.map(notice => {
@@ -114,9 +115,8 @@ function locate() {
     locating.value = false; void mapClick([position.coords.longitude, position.coords.latitude])
   }, error => {
     locating.value = false; placing.value = null
-    // Only a denied permission means location is off. A timeout or unavailable fix is a different failure.
-    state.error = error.code === error.PERMISSION_DENIED ? 'Location is off. Search for a start instead.' : "Couldn't find your location. Search for a start instead."
-  }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 })
+    state.error = locationErrorMessage(error.code)
+  }, LOCATE_OPTIONS)
   placing.value = 'start'
 }
 function preview(which: 'results' | 'saved' = 'results') {
@@ -140,14 +140,10 @@ async function saveRoute(route: RouteCandidate) {
   copy.name = route.turns.reduce((longest, turn) => turn.distanceMeters > longest.distanceMeters ? turn : longest, route.turns[0] ?? { street: 'Bloomfield', distanceMeters: 0 }).street.replace(/ Avenue$/, ' Ave').replace(/ Street$/, ' St') + ' loop'
   saved.value.unshift(copy); await persistSaved(); showToast('Route saved.')
 }
-function chooseSaved(route: RouteCandidate) { planner.cancel(); savedSelectedId.value = route.id; state.presentation = 'restore'; state.revision++; legendOpen.value = false }
-/** Focuses the rename box as it appears, selecting the name so typing replaces it. */
-const vFocus = { mounted: (element: HTMLInputElement) => { element.focus(); element.select() } }
-function rename(route: RouteCandidate) { renamingId.value = route.id; renameValue.value = route.name }
-async function commitRename(route: RouteCandidate) {
-  // Enter, blur and Escape can all reach here. Only the first one for an open rename saves.
-  if (renamingId.value !== route.id) return
-  if (renameValue.value.trim()) route.name = renameValue.value.trim().slice(0, 120)
+function chooseSaved(route: RouteCandidate) { planner.cancel(); savedSelectedId.value = route.id; state.presentation = 'saved'; state.revision++; legendOpen.value = false }
+function rename(route: RouteCandidate) { renamingId.value = route.id }
+async function commitRename(route: RouteCandidate, name: string) {
+  if (name.trim()) route.name = name.trim().slice(0, 120)
   renamingId.value = ''; await persistSaved()
 }
 /** Deleting a saved route waits for confirmation. There is no undo, so the dialog is the only safeguard. */
@@ -209,7 +205,7 @@ onMounted(async () => {
       if (typeof stored.avoidBusyRoads === 'boolean') state.settings.avoidBusyRoads = stored.avoidBusyRoads
       if (typeof stored.preferInfrastructure === 'boolean') state.settings.preferInfrastructure = stored.preferInfrastructure
     } else units.value = /-(US|LR|MM)\b/i.test(navigator.language) ? 'mi' : 'km'
-    if (localStorage.getItem(PACE_SETUP_KEY) === null) paceSetupOpen.value = true
+    if (needsPaceSetup(localStorage)) paceSetupOpen.value = true
     saved.value = await repository.load()
   } catch { /* Defaults also work when browser storage is unavailable. */ }
   const query = new URLSearchParams(window.location.search)
@@ -266,9 +262,7 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
         </template>
         <template v-else>
           <div class="saved-content"><div class="saved-heading"><p>{{ saved.length }} saved {{ saved.length === 1 ? 'route' : 'routes' }}</p><p>Saved on this device only.</p></div><p v-if="!saved.length" class="empty-saved">Saved routes will appear here.</p>
-            <template v-for="route in saved" :key="route.id"><article class="saved-route" :class="{ selected: savedSelectedId === route.id }"><button type="button" class="saved-select-hit" :aria-label="`Select ${route.name}`" :aria-pressed="savedSelectedId === route.id" @click="chooseSaved(route)"></button><div class="saved-select"><RouteThumbnail :coordinates="shown(route).coordinates" /><span class="saved-details"><input v-if="renamingId === route.id" v-model="renameValue" v-focus class="rename-input" aria-label="Route name" maxlength="120" @keydown.enter.prevent="commitRename(route)" @keydown.esc="renamingId = ''" @blur="commitRename(route)" /><span v-else class="saved-name">{{ route.name }}</span><span class="saved-specs"><Icon :name="MODE_ICONS[shown(route).mode]" size="16" /><span>{{ distanceText(shown(route).distanceMeters, units) }} <span class="unit distance-unit">{{ units }}</span></span><span>{{ gainText(shown(route).gainMeters, units) }} <span class="unit">{{ units === 'mi' ? 'ft' : 'm' }}</span></span><span>{{ minutesFor(shown(route).distanceMeters, shown(route).mode, pace) }} <span class="unit">min</span></span></span></span></div>
-              <div v-if="savedSelectedId === route.id" class="saved-row-actions"><IconButton icon="ph:pencil-simple" label="Rename route" @click="rename(route)" /><IconButton icon="ph:arrows-counter-clockwise" label="Reverse route" :disabled="reversingId === route.id" @click="reverseSaved(route)" /><IconButton icon="ph:export" label="Share route" @click="shareRoute(shown(route))" /><IconButton icon="ph:trash" label="Delete route" danger @click="askDelete(route)" /></div>
-            </article></template>
+            <template v-for="route in saved" :key="route.id"><SavedRouteRow :route="route" :shown="shown(route)" :selected="savedSelectedId === route.id" :renaming="renamingId === route.id" :reversing="reversingId === route.id" :units="units" :pace="pace" @select="chooseSaved(route)" @rename="rename(route)" @commit-rename="commitRename(route, $event)" @cancel-rename="renamingId = ''" @reverse="reverseSaved(route)" @share="shareRoute(shown(route))" @remove="askDelete(route)" /></template>
           </div>
           <div v-if="state.error" class="error-line" role="status"><Icon name="ph:warning-circle" size="20" /><span>{{ state.error }}</span></div>
           <StravaImportButton :dark="dark" :state="stravaState" @click="importStrava" />

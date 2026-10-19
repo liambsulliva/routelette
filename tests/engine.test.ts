@@ -253,6 +253,63 @@ describe('grace windows', () => {
   })
 })
 
+describe('hard limits on generated loops', () => {
+  const grace = 50 * 0.3048
+  const level: ElevationSource = { load: async () => true, at: () => 300 }
+
+  it('gives each elevation band 50 ft of grace at its edges, and never lets the lower edge go below zero', () => {
+    expect(gainLimits({ elevation: 'flat', customGainMeters: null }, 2 * MILE)!.high).toBeCloseTo(2 * 20 * 0.3048 + grace)
+    expect(gainLimits({ elevation: 'hilly', customGainMeters: null }, 2 * MILE)!.low).toBeCloseTo(2 * 40 * 0.3048 - grace)
+    expect(gainLimits({ elevation: 'hilly', customGainMeters: null }, 2 * MILE)!.high).toBeCloseTo(2 * 80 * 0.3048 + grace)
+    expect(gainLimits({ elevation: 'steep', customGainMeters: null }, 2 * MILE)!.low).toBeCloseTo(2 * 100 * 0.3048 - grace)
+    expect(gainLimits({ elevation: 'steep', customGainMeters: null }, 2 * MILE)!.high).toBe(Infinity)
+    expect(gainLimits({ elevation: 'hilly', customGainMeters: null }, MILE)!.low).toBe(0)
+    expect(gainLimits({ elevation: 'custom', customGainMeters: 10 }, MILE)).toEqual({ low: 0, high: 10 + grace })
+  })
+
+  it('returns only loops whose gain sits inside the hilly band for their own length, grace included', async () => {
+    // Level ground gives zero gain. Short loops can still fit, because the band's lower edge clips to zero once grace covers it.
+    const result = await plan(request({ elevation: 'hilly' }), context(fixture, level))
+    for (const route of result.routes) {
+      const limits = gainLimits(route.settings, route.distanceMeters)!
+      expect(route.gainMeters!).toBeGreaterThanOrEqual(limits.low)
+      expect(route.gainMeters!).toBeLessThanOrEqual(limits.high)
+    }
+  })
+
+  it('drops a stops-over-budget loop that breaks the elevation band, and keeps its explanation', async () => {
+    const loop = (await plan(request(), context())).routes[0]!.coordinates
+    const farthest = loop.reduce((best, point) => haversine(point, START) > haversine(best, START) ? point : best)
+    const far = { id: 'far', label: 'Far', coordinates: farthest }
+    const tight = await plan(request({ stops: [far], distanceMeters: 0.5 * MILE, elevation: 'custom', customGainMeters: 200 * 0.3048 }), context(fixture, level))
+    expect(tight.routes).toEqual([])
+    expect(tight.notices?.[0]?.code).toBe('stops-over-budget')
+  })
+
+  it('applies the surface rule to both sides, each allowing a mile of the other surface', () => {
+    // A path from the start, then residential road. Latitude degrees are about 111.2 km.
+    const build = (pathMeters: number, roadMeters: number) => {
+      const pt = (metersNorth: number) => ({ lon: -80, lat: 40 + metersNorth / 111195 })
+      const elements: Elements = {
+        nodes: [{ id: 1, ...pt(0) }, { id: 2, ...pt(pathMeters) }, { id: 3, ...pt(pathMeters + roadMeters) }],
+        ways: [{ id: 30, refs: [1, 2], tags: { highway: 'path' } }, { id: 31, refs: [2, 3], tags: { highway: 'residential' } }],
+        relations: [],
+      }
+      const graph = RoutingGraph.fromTiles([...tilesFor(elements, [-80.01, 39.99, -79.99, 40.05]).decoded.values()])
+      const profile = buildProfile(graph, settings(), { elevations: null, choice: 'any', rate: null })
+      const start = graph.nodesNear([-80, 40], 1)[0]!
+      const end = graph.nodesNear([-80, 40 + (pathMeters + roadMeters) / 111195], 1)[0]!
+      return { graph, path: new PathFinder(graph, profile).find(start, end)! }
+    }
+    const pathHeavy = build(2400, 800), roadHeavy = build(800, 2400)
+    expect(surfaceFits(pathHeavy.graph, pathHeavy.path, 'trail')).toBe(true)
+    expect(surfaceFits(pathHeavy.graph, pathHeavy.path, 'paved')).toBe(false)
+    expect(surfaceFits(roadHeavy.graph, roadHeavy.path, 'trail')).toBe(false)
+    expect(surfaceFits(roadHeavy.graph, roadHeavy.path, 'paved')).toBe(true)
+    expect(surfaceFits(roadHeavy.graph, roadHeavy.path, 'mixed')).toBe(true)
+  })
+})
+
 describe('elevation gain', () => {
   it('smooths noise but counts real climbing', () => {
     const noisy = Array.from({ length: 50 }, (_, i) => 100 + (i % 2 ? 1 : -1))

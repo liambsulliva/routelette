@@ -2,10 +2,18 @@ import { computed, reactive } from 'vue'
 import { copySettings, initialSettings, PlanningFailure } from './planner'
 import type { PlanningNotice, PlanningService, PlanningSettings, RouteCandidate, PlanningRequest } from './planner'
 
+/**
+ * The card row says "No routes available" only after a generation that finished with nothing.
+ * While one is running, after a failure, or before any generation, it stays hidden.
+ */
+export function noRoutesShown(state: { busy: boolean; error: string; routes: unknown[]; presentation: string }): boolean {
+  return !state.busy && !state.error && state.routes.length === 0 && state.presentation === 'generate'
+}
+
 export function createPlanner(service: PlanningService, settings = initialSettings()) {
   const state = reactive({
     settings, routes: [] as RouteCandidate[], selectedId: '', busy: false, error: '',
-    elevationAvailable: true, revision: 0, presentation: 'selection' as 'generate' | 'selection' | 'restore' | 'reverse' | 'reshape',
+    elevationAvailable: true, revision: 0, presentation: 'selection' as 'generate' | 'selection' | 'restore' | 'reverse' | 'reshape' | 'saved',
     toast: '', notices: [] as PlanningNotice[],
   })
   let sequence = 0

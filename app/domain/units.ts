@@ -37,6 +37,8 @@ export function minutesFor(meters: number, mode: Mode, pace: Record<Mode, number
 }
 /** Pace is stored as minutes per mile. Kilometers show the same pace per kilometer. */
 export const PACE_LIMITS = { minimum: 1, maximum: 120 }
+/** Minutes per mile for each mode: 12 mph biking, a 9:30 mile run, and a 20 minute mile walk. */
+export const DEFAULT_PACE: Record<Mode, number> = { bike: 5, run: 9.5, walk: 20 }
 const KILOMETERS_PER_MILE = METERS_PER_MILE / 1000
 export function paceFor(minutesPerMile: number, units: Units): number {
   return units === 'mi' ? minutesPerMile : minutesPerMile / KILOMETERS_PER_MILE
