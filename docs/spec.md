@@ -424,6 +424,7 @@ Errors use one line in the panel plus an action. No modals for errors. The one e
 | Case | Copy | Action |
 |---|---|---|
 | Location denied | "Location is off. Search for a start instead." | Focuses search |
+| Location unavailable or timed out | "Couldn't find your location. Search for a start instead." | Focuses search |
 | No loop in range | "No loops near 5 mi from here. Closest is 6.1 mi." | Show it · Try 6 mi |
 | No quiet loop | "No quiet loops near 5 mi from here." | Allow busy roads |
 | Map data unavailable | "Can't load map data right now." | Retry |

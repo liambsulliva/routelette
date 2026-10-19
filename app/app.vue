@@ -108,7 +108,11 @@ function locate() {
   locating.value = true
   navigator.geolocation.getCurrentPosition(position => {
     locating.value = false; void mapClick([position.coords.longitude, position.coords.latitude])
-  }, () => { locating.value = false; placing.value = null; state.error = 'Location is off. Search for a start instead.' }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 })
+  }, error => {
+    locating.value = false; placing.value = null
+    // Only a denied permission means location is off. A timeout or unavailable fix is a different failure.
+    state.error = error.code === error.PERMISSION_DENIED ? 'Location is off. Search for a start instead.' : "Couldn't find your location. Search for a start instead."
+  }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 })
   placing.value = 'start'
 }
 function preview(which: 'results' | 'saved' = 'results') {
