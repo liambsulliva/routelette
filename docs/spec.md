@@ -165,7 +165,7 @@ Miles or kilometers, defaulting from the browser locale. Elevation follows: feet
 
 ### 4.5 Elevation
 
-Gain scales with distance, so presets are rates. The options are a row of five icon tiles. A 24 px row under the picker stays in place for every option, so changing a choice does not shift the controls. Any shows "Any: Elevation is not scored". Flat, Hilly and Steep show their total gain range for the current distance.
+Gain scales with distance, so presets are rates. The options are a row of five icon tiles. A 24 px row under the picker stays in place for every option, so changing a choice does not shift the controls. Any shows "Any: Elevation is not scored". Flat, Hilly and Steep show their total gain range for the current distance. Each range has 50 ft of grace at its edges, and Custom allows 50 ft either side of the number typed. A route just outside a range still counts. A route outside it, grace included, is not shown.
 
 | Option | Rate | Caption at 5 mi |
 |---|---|---|
@@ -173,7 +173,7 @@ Gain scales with distance, so presets are rates. The options are a row of five i
 | Flat | 20 ft/mi or less | Under 100 ft |
 | Hilly | 40 to 80 ft/mi | 200 to 400 ft |
 | Steep | 100 ft/mi or more | 500 ft or more |
-| Custom | A total you type | Your number |
+| Custom | A total you type, ±50 ft | Your number |
 
 Selecting Custom reveals a gain field below the elevation picker. Commit the value inline without opening a popup.
 
@@ -183,9 +183,13 @@ If elevation data is unavailable, gray out the Flat, Hilly, Steep and Custom but
 
 Paved, Mixed and Trail sit directly below Elevation. They reuse the elevation tile design and its neutral selection border. Align them to the first three columns of Elevation's five-column grid, with the same gaps at each panel width. The Phosphor icons are `road-horizon`, `shuffle` and `tree-evergreen`. Mixed is selected by default.
 
+The surface choice allows a mile of the other surface. Trail accepts a route with up to a mile of paved road, so a path reached by a paved road still shows up. Paved accepts a route with up to a mile of trail or unpaved path. Mixed accepts any route. A route that breaks its rule is not shown.
+
 ### 4.7 Preferences
 
 Two switches, both on by default and remembered per device.
+
+**Usual pace.** On first open, Routelette asks for the average pace for Biking, Running and Walking, in min/mi or min/km to match the units. The fields start at the defaults, 5, 9.5 and 20 min/mi. Continue saves them on this device, and the setup does not appear again. Routes compute their time from these paces. On a route card, the clock swaps the time for a pace box in the same row, reading "9.5 min/mi" or "9.5 min/km". Enter or clicking away saves, and Escape cancels.
 
 - **Avoid busy roads.** Keeps loops off arterials. Crossing them is fine.
 - **Prefer sidewalks** (run, walk) or **Prefer bike lanes** (bike). The label follows the mode.
@@ -240,7 +244,7 @@ Each row (`SavedRouteRow`) shows:
 
 Clicking a row selects it. The map then shows that route alone, in copper, with its start marker and legend chip ("16 turns · 115 ft"). No result cards appear in this tab.
 
-- **Selected row.** Copper outline, copper name and numbers, copper thumbnail line, plus a row of icon buttons with tooltips: Rename, Reverse, Share, Delete. Delete is the only red control.
+- **Selected row.** Copper outline, copper name and numbers, copper thumbnail line, plus a row of icon buttons with tooltips: Rename, Reverse, Share, Delete. Rename turns the title into a text box in place. Enter or clicking away saves, and Escape cancels. Delete is the only red control.
 - **Name.** Defaults to the street the route spends the most distance on, plus "loop": "Kincaid St loop". Renaming edits the name in place ("Saturday long run").
 - **Delete.** A dialog asks "Delete this route?" with Cancel and Delete. Cancel, Escape and a click outside the dialog do nothing else. Delete removes the row at once. There is no undo, so the dialog is the only check. The dialog's Cancel button has focus when it opens.
 - **Mobile.** The bar opens to half height so the selected route stays visible above it; the list scrolls.
@@ -431,6 +435,7 @@ Errors use one line in the panel plus an action. No modals for errors. The one e
 | Elevation data unavailable | "Unavailable" on disabled elevation choices and missing gain values | Retry or Any |
 | Start off the network | "Moved 40 ft to the nearest path." | None |
 | Stops over budget | "Your stops need at least 7.2 mi." | None, Roll disabled |
+| No routes in range | "No routes available" in the card row | None, change a setting |
 
 ## 13. Persistence
 

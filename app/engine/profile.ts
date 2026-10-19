@@ -11,6 +11,15 @@ const FOOT_BASE: Partial<Record<number, number>> = {
 }
 const ROAD_CODES = new Set([H.primary, H.primary_link, H.secondary, H.secondary_link, H.tertiary, H.tertiary_link, H.unclassified, H.residential, H.living_street, H.service, H.road])
 
+/** Trail-like ways: flagged as trail, or unpaved off a road. */
+export function isTrail(flags: number, highway: number): boolean {
+  return (flags & WAY.TRAIL) !== 0 || ((flags & WAY.UNPAVED) !== 0 && !ROAD_CODES.has(highway))
+}
+/** Anything that isn't a paved road, for the paved surface choice. */
+export function offPavement(flags: number, highway: number): boolean {
+  return isTrail(flags, highway) || (flags & WAY.UNPAVED) !== 0
+}
+
 /** The multiplier on length for one way in one mode, from section 9.2 of the spec. */
 export function wayMultiplier(flags: number, highway: number, settings: PlanningSettings): number {
   const bike = settings.mode === 'bike'
@@ -43,9 +52,8 @@ export function wayMultiplier(flags: number, highway: number, settings: Planning
     }
   }
 
-  const trail = (flags & WAY.TRAIL) !== 0 || ((flags & WAY.UNPAVED) !== 0 && !ROAD_CODES.has(highway))
-  if (settings.surface === 'paved' && (trail || (flags & WAY.UNPAVED))) m *= 2
-  else if (settings.surface === 'trail') m *= trail ? 0.6 : ROAD_CODES.has(highway) ? 1.25 : 1
+  if (settings.surface === 'paved' && offPavement(flags, highway)) m *= 2
+  else if (settings.surface === 'trail') m *= isTrail(flags, highway) ? 0.6 : ROAD_CODES.has(highway) ? 1.25 : 1
   return m
 }
 

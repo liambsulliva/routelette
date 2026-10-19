@@ -153,6 +153,7 @@ button.roll-button.busy:disabled { background: var(--line-strong); color: var(--
 .app-footer { flex: none; border-top: 1px solid var(--line); padding: 12px 8px 0; color: var(--muted); font-size: 12px; line-height: 16px; }
 .app-footer a:hover { color: var(--fg); text-decoration: underline; text-underline-offset: 2px; }
 .route-cards { position: absolute; z-index: 5; bottom: 16px; left: 392px; right: 16px; display: flex; gap: 16px; overflow-x: auto; overflow-y: visible; scrollbar-width: none; padding: 4px; margin: -4px; }
+.route-empty { flex: none; width: fit-content; height: fit-content; margin: 0; padding: 12px 16px; border-radius: 12px; color: var(--muted); font-size: 12px; line-height: 16px; }
 .route-card { position: relative; flex: 0 0 240px; width: 240px; min-height: 136px; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; transition: background-color 120ms ease; }
 .route-card:hover, .route-card.hovered { background: var(--hover); }
 .route-card.selected { border: 1.5px solid var(--accent); padding: 15.5px; color: var(--accent-text); }
@@ -173,10 +174,8 @@ button.roll-button.busy:disabled { background: var(--line-strong); color: var(--
 .stat-value { font: 600 14px/18px 'Sora', sans-serif; }
 .stat .unit { color: var(--muted); }
 .time-button { position: relative; z-index: 2; }
-.pace-editor { position: relative; z-index: 2; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--fg); }
-.pace-editor label { font-size: 12px; }
-.pace-editor input { width: 64px; background: var(--bg); border: 1px solid var(--line-strong); border-radius: 4px; padding: 4px 6px; }
-.pace-editor button { color: var(--accent-text); }
+.pace-stat { position: relative; z-index: 2; color: var(--fg); }
+.pace-input { width: 56px; background: var(--bg); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; font: 600 14px/18px 'Sora', sans-serif; color: var(--fg); }
 .route-legend { position: absolute; z-index: 15; right: 16px; top: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .legend-chip { display: flex; align-items: center; gap: 8px; padding: 8px 12px; min-height: 38px; border-radius: 24px; font-weight: 500; }
 .legend-dropdown { width: 320px; padding: 16px; max-height: min(560px, 65dvh); overflow-y: auto; border-radius: 12px; transform-origin: top right; }
@@ -203,19 +202,20 @@ button.roll-button.busy:disabled { background: var(--line-strong); color: var(--
 .saved-heading { font-size: 12px; line-height: 16px; color: var(--muted); margin-bottom: 12px; }
 .saved-heading p:first-child { color: var(--fg); font-weight: 500; margin-bottom: 2px; }
 .empty-saved { color: var(--muted); padding: 16px 0; }
-.saved-route { border-bottom: 1px solid var(--line); padding: 10px 0; }
-.saved-select { display: flex; width: 100%; gap: 12px; text-align: left; align-items: center; }
+.saved-route { position: relative; border-bottom: 1px solid var(--line); padding: 10px 0; }
+/* The select button covers the row. Content above it passes clicks through, except the rename box. */
+.saved-select-hit { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; background: none; border: 0; border-radius: inherit; cursor: pointer; }
+.saved-select { position: relative; z-index: 1; display: flex; width: 100%; gap: 12px; text-align: left; align-items: center; pointer-events: none; }
 .route-thumbnail { width: 40px; height: 40px; flex: none; color: var(--muted); }
 .saved-details { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .saved-name { font: 600 12px/16px 'Sora', sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .saved-specs { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; }
 .saved-specs .unit { color: var(--muted); font-size: 9px; }
 .saved-route.selected .saved-name, .saved-route.selected .route-thumbnail { color: var(--accent-text); }
-.saved-row-actions { display: flex; gap: 8px; padding-left: 48px; padding-top: 8px; }
+.saved-row-actions { position: relative; z-index: 1; display: flex; gap: 8px; padding-left: 48px; padding-top: 8px; }
 .saved-row-actions .icon-button { width: 32px; height: 32px; }
-.rename-editor { display: flex; gap: 8px; margin: 8px 0 0 48px; }
-.rename-editor input { width: 100%; background: none; border: 1px solid var(--line-strong); border-radius: 4px; padding: 4px 6px; }
-.rename-editor button { color: var(--accent-text); }
+/* Sits where the title is, so renaming happens in place. */
+.rename-input { pointer-events: auto; width: 100%; min-width: 0; padding: 2px 4px; font: 600 12px/16px 'Sora', sans-serif; color: var(--fg); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 4px; }
 .confirm-dialog { width: min(360px, calc(100vw - 32px)); margin: auto; padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); color: var(--fg); box-shadow: var(--shadow); }
 .confirm-dialog::backdrop { background: #17171a66; }
 .confirm-body { display: grid; gap: 8px; padding: 20px; }
@@ -225,6 +225,16 @@ button.roll-button.busy:disabled { background: var(--line-strong); color: var(--
 .confirm-actions button { height: 36px; padding: 0 14px; border-radius: 4px; font: 500 14px/20px 'Instrument Sans', sans-serif; }
 .confirm-cancel { border: 1px solid var(--line-strong); color: var(--fg); }
 .confirm-delete { background: var(--danger); color: var(--inverse); }
+.pace-setup { width: min(360px, calc(100vw - 32px)); margin: auto; padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); color: var(--fg); box-shadow: var(--shadow); }
+.pace-setup::backdrop { background: #17171a66; }
+.pace-setup-body { display: grid; gap: 12px; padding: 20px; }
+.pace-setup-body h2 { font: 600 16px/22px 'Sora', sans-serif; }
+.pace-setup-body > p { font-size: 14px; line-height: 20px; color: var(--muted); }
+.pace-setup-rows { display: grid; gap: 8px; }
+.pace-setup-row { display: grid; grid-template-columns: 20px 1fr 80px auto; align-items: center; gap: 8px; font-size: 14px; }
+.pace-setup-row input { width: 80px; background: var(--bg); border: 1px solid var(--line-strong); border-radius: 4px; padding: 6px 8px; color: var(--fg); font: 600 14px/18px 'Sora', sans-serif; }
+.pace-setup-submit { justify-self: end; height: 36px; padding: 0 14px; border-radius: 4px; background: var(--accent); color: var(--inverse); font: 500 14px/20px 'Instrument Sans', sans-serif; }
+.pace-setup-submit:disabled { opacity: .5; }
 .strava-button { flex: none; height: 52px; border-radius: 4px; margin: 12px 0; background: var(--accent); color: var(--inverse); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .strava-lockup { display: inline-flex; align-items: flex-end; gap: 6px; }
 .strava-label-wrap { display: flex; flex-direction: column; padding-bottom: 1.5px; }

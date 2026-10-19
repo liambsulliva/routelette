@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { initialSettings, PlanningFailure } from '../app/domain/planner'
+import { ELEVATION_GRACE_METERS, gainLimits } from '../app/domain/units'
 import type { Coordinates, GraphManifest, PlanningRequest, PlanningSettings } from '../app/domain/planner'
 import { gainFrom } from '../app/engine/elevation'
 import type { ElevationSource } from '../app/engine/elevation'
-import { plan } from '../app/engine/engine'
+import { plan, surfaceFits } from '../app/engine/engine'
 import { decodeTile, encodeTile, HIGHWAYS, NODE, WAY } from '../app/engine/format'
 import type { DecodedTile } from '../app/engine/format'
 import { haversine } from '../app/engine/geo'
@@ -208,6 +209,47 @@ describe('loops', () => {
     expect(pathLength(graph, trimmed)).toBeLessThan(pathLength(graph, path) - 100)
     const kept = removeSpurs(graph, path, new Set([node(0, 0), node(2, 0)]))
     expect(kept).toEqual(path)
+  })
+})
+
+describe('grace windows', () => {
+  const grace = 50 * 0.3048
+  it('adds 50 ft either side of each elevation band and of the custom number', () => {
+    expect(gainLimits({ elevation: 'custom', customGainMeters: 100 }, MILE)).toEqual({ low: 100 - grace, high: 100 + grace })
+    expect(gainLimits({ elevation: 'flat', customGainMeters: null }, MILE)!.high).toBeCloseTo(20 * 0.3048 + grace)
+    expect(gainLimits({ elevation: 'hilly', customGainMeters: null }, 2 * MILE)!.low).toBeCloseTo(2 * 40 * 0.3048 - grace)
+    expect(gainLimits({ elevation: 'any', customGainMeters: null }, MILE)).toBeNull()
+  })
+
+  it('keeps custom loops inside the band, or returns none', async () => {
+    const level: ElevationSource = { load: async () => true, at: () => 300 }
+    // Level ground has no gain, so a 200 ft target has nothing to return.
+    expect((await plan(request({ elevation: 'custom', customGainMeters: 200 * 0.3048 }), context(fixture, level))).routes).toEqual([])
+    const hill: ElevationSource = { load: async () => true, at: ([, lat]) => 300 + (lat - START[1]) * 5000 }
+    const target = (await plan(request(), context(fixture, hill))).routes[0]!.gainMeters!
+    const banded = await plan(request({ elevation: 'custom', customGainMeters: target }), context(fixture, hill))
+    for (const route of banded.routes) expect(Math.abs(route.gainMeters! - target)).toBeLessThanOrEqual(ELEVATION_GRACE_METERS)
+  })
+
+  it('lets a trail route carry a mile of road, and no more', () => {
+    // Latitude degrees are about 111.2 km, so 0.009 degrees is roughly 1 km of path before the road starts.
+    const build = (roadMeters: number) => {
+      const end = 0.009 + roadMeters / 111195
+      const pt = (lat: number) => ({ lon: -80, lat: 40 + lat })
+      const elements: Elements = {
+        nodes: [{ id: 1, ...pt(0) }, { id: 2, ...pt(0.009) }, { id: 3, ...pt(end) }],
+        ways: [{ id: 30, refs: [1, 2], tags: { highway: 'path' } }, { id: 31, refs: [2, 3], tags: { highway: 'residential' } }],
+        relations: [],
+      }
+      const graph = RoutingGraph.fromTiles([...tilesFor(elements, [-80.01, 39.99, -79.99, 40.05]).decoded.values()])
+      const profile = buildProfile(graph, settings(), { elevations: null, choice: 'any', rate: null })
+      return { graph, path: new PathFinder(graph, profile).find(graph.nodesNear([-80, 40], 1)[0]!, graph.nodesNear([-80, 40 + end], 1)[0]!)! }
+    }
+    const short = build(800), long = build(2400)
+    expect(surfaceFits(short.graph, short.path, 'trail')).toBe(true)
+    expect(surfaceFits(long.graph, long.path, 'trail')).toBe(false)
+    expect(surfaceFits(long.graph, long.path, 'paved')).toBe(true)
+    expect(surfaceFits(long.graph, long.path, 'mixed')).toBe(true)
   })
 })
 

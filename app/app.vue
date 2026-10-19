@@ -8,6 +8,8 @@ import { createSavedRoutes } from './services/saved-routes'
 import { encodeRoute, decodeRoute } from './services/share'
 import { createWorkerPlanner } from './services/worker-planner'
 
+/** Written when the usual-pace setup is confirmed. Until it exists, the setup opens on load. */
+const PACE_SETUP_KEY = 'routelette:pace-setup:v1'
 const config = useRuntimeConfig()
 const fixtureMode = config.public.fixtureMode === true || String(config.public.fixtureMode) === 'true'
 const planner = createPlanner(fixtureMode ? createFixturePlanner() : config.public.graphManifestUrl ? createWorkerPlanner(String(config.public.graphManifestUrl)) : createUnavailablePlanner())
@@ -18,7 +20,7 @@ const dark = computed(() => theme.value === 'dark' || theme.value === 'system' &
 const pace = reactive<Record<Mode, number>>({ bike: 5, run: 9.5, walk: 20 })
 const mobile = ref(false), panelHeight = ref(94), placing = ref<'start' | 'stop' | null>(null), locating = ref(false)
 const saved = ref<RouteCandidate[]>([]), savedSelectedId = ref(''), renamingId = ref(''), renameValue = ref(''), toast = ref('')
-const pendingDelete = ref<RouteCandidate | null>(null), hydrated = ref(false)
+const pendingDelete = ref<RouteCandidate | null>(null), hydrated = ref(false), paceSetupOpen = ref(false)
 const highlighted = ref<Coordinates[]>([]), hoveredRouteId = ref(''), stravaState = ref<'idle' | 'loading' | 'done'>('idle'), reversingId = ref('')
 const panel = useTemplateRef<HTMLElement>('panel')
 const tabsEl = useTemplateRef<HTMLElement>('tabs')
@@ -33,6 +35,8 @@ const activeSaved = computed(() => saved.value.find(route => route.id === savedS
 const visibleRoutes = computed(() => tab.value === 'saved' && !shared.value ? (activeSaved.value ? [shown(activeSaved.value)] : []) : state.routes)
 const activeRoute = computed(() => tab.value === 'saved' && !shared.value ? (activeSaved.value ? shown(activeSaved.value) : null) : selected.value)
 const cardsVisible = computed(() => !shared.value && tab.value === 'plan' && state.routes.length > 0 && !(mobile.value && expanded.value))
+// The last plan finished as a generate that found nothing. Errors keep their own message in the panel.
+const noRoutes = computed(() => !shared.value && tab.value === 'plan' && !state.busy && !state.error && state.routes.length === 0 && state.presentation === 'generate')
 const scene = computed(() => ({
   routes: visibleRoutes.value, selectedId: activeRoute.value?.id ?? '', hoveredId: hoveredRouteId.value,
   start: tab.value === 'saved' ? activeSaved.value?.settings.start ?? null : state.settings.start,
@@ -137,8 +141,15 @@ async function saveRoute(route: RouteCandidate) {
   saved.value.unshift(copy); await persistSaved(); showToast('Route saved.')
 }
 function chooseSaved(route: RouteCandidate) { planner.cancel(); savedSelectedId.value = route.id; state.presentation = 'restore'; state.revision++; legendOpen.value = false }
+/** Focuses the rename box as it appears, selecting the name so typing replaces it. */
+const vFocus = { mounted: (element: HTMLInputElement) => { element.focus(); element.select() } }
 function rename(route: RouteCandidate) { renamingId.value = route.id; renameValue.value = route.name }
-async function commitRename(route: RouteCandidate) { if (renameValue.value.trim()) route.name = renameValue.value.trim().slice(0, 120); renamingId.value = ''; await persistSaved() }
+async function commitRename(route: RouteCandidate) {
+  // Enter, blur and Escape can all reach here. Only the first one for an open rename saves.
+  if (renamingId.value !== route.id) return
+  if (renameValue.value.trim()) route.name = renameValue.value.trim().slice(0, 120)
+  renamingId.value = ''; await persistSaved()
+}
 /** Deleting a saved route waits for confirmation. There is no undo, so the dialog is the only safeguard. */
 function askDelete(route: RouteCandidate) { pendingDelete.value = route }
 const deleteMessage = computed(() => pendingDelete.value ? `${pendingDelete.value.name} will be removed from this device. This can't be undone.` : '')
@@ -198,6 +209,7 @@ onMounted(async () => {
       if (typeof stored.avoidBusyRoads === 'boolean') state.settings.avoidBusyRoads = stored.avoidBusyRoads
       if (typeof stored.preferInfrastructure === 'boolean') state.settings.preferInfrastructure = stored.preferInfrastructure
     } else units.value = /-(US|LR|MM)\b/i.test(navigator.language) ? 'mi' : 'km'
+    if (localStorage.getItem(PACE_SETUP_KEY) === null) paceSetupOpen.value = true
     saved.value = await repository.load()
   } catch { /* Defaults also work when browser storage is unavailable. */ }
   const query = new URLSearchParams(window.location.search)
@@ -220,10 +232,16 @@ watch([dark, reducedMotion], () => {
   document.documentElement.dataset.theme = dark.value ? 'dark' : 'light'
   document.documentElement.dataset.reducedMotion = String(reducedMotion.value)
 }, { immediate: true })
-watch([theme, units, reducedMotion, pace, () => state.settings.avoidBusyRoads, () => state.settings.preferInfrastructure], () => {
+/** Saves display and pace settings on this device. The first saved copy also marks the setup as done. */
+function persistPreferences() {
   if (!import.meta.client || !hydrated.value) return
   try { localStorage.setItem('routelette:preferences:v1', JSON.stringify({ theme: theme.value, units: units.value, reducedMotion: reducedMotion.value, pace, avoidBusyRoads: state.settings.avoidBusyRoads, preferInfrastructure: state.settings.preferInfrastructure })) } catch { /* Settings remain usable without persistence. */ }
-}, { deep: true })
+}
+watch([theme, units, reducedMotion, pace, () => state.settings.avoidBusyRoads, () => state.settings.preferInfrastructure], persistPreferences, { deep: true })
+function completePaceSetup(paces: Record<Mode, number>) {
+  Object.assign(pace, paces); paceSetupOpen.value = false; persistPreferences()
+  try { localStorage.setItem(PACE_SETUP_KEY, '1') } catch { /* Without storage the setup opens again on the next load. */ }
+}
 onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); disposers.forEach(dispose => dispose()); clearTimeout(toastTimer) })
 </script>
 
@@ -248,8 +266,7 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
         </template>
         <template v-else>
           <div class="saved-content"><div class="saved-heading"><p>{{ saved.length }} saved {{ saved.length === 1 ? 'route' : 'routes' }}</p><p>Saved on this device only.</p></div><p v-if="!saved.length" class="empty-saved">Saved routes will appear here.</p>
-            <template v-for="route in saved" :key="route.id"><article class="saved-route" :class="{ selected: savedSelectedId === route.id }"><button type="button" class="saved-select" :aria-label="`Select ${route.name}`" :aria-pressed="savedSelectedId === route.id" @click="chooseSaved(route)"><RouteThumbnail :coordinates="shown(route).coordinates" /><span class="saved-details"><span class="saved-name">{{ route.name }}</span><span class="saved-specs"><Icon :name="MODE_ICONS[shown(route).mode]" size="16" /><span>{{ distanceText(shown(route).distanceMeters, units) }} <span class="unit distance-unit">{{ units }}</span></span><span>{{ gainText(shown(route).gainMeters, units) }} <span class="unit">{{ units === 'mi' ? 'ft' : 'm' }}</span></span><span>{{ minutesFor(shown(route).distanceMeters, shown(route).mode, pace) }} <span class="unit">min</span></span></span></span></button>
-              <form v-if="renamingId === route.id" class="rename-editor" @submit.prevent="commitRename(route)"><input v-model="renameValue" aria-label="Route name" maxlength="120" @keydown.esc="renamingId = ''" /><button type="submit">Done</button></form>
+            <template v-for="route in saved" :key="route.id"><article class="saved-route" :class="{ selected: savedSelectedId === route.id }"><button type="button" class="saved-select-hit" :aria-label="`Select ${route.name}`" :aria-pressed="savedSelectedId === route.id" @click="chooseSaved(route)"></button><div class="saved-select"><RouteThumbnail :coordinates="shown(route).coordinates" /><span class="saved-details"><input v-if="renamingId === route.id" v-model="renameValue" v-focus class="rename-input" aria-label="Route name" maxlength="120" @keydown.enter.prevent="commitRename(route)" @keydown.esc="renamingId = ''" @blur="commitRename(route)" /><span v-else class="saved-name">{{ route.name }}</span><span class="saved-specs"><Icon :name="MODE_ICONS[shown(route).mode]" size="16" /><span>{{ distanceText(shown(route).distanceMeters, units) }} <span class="unit distance-unit">{{ units }}</span></span><span>{{ gainText(shown(route).gainMeters, units) }} <span class="unit">{{ units === 'mi' ? 'ft' : 'm' }}</span></span><span>{{ minutesFor(shown(route).distanceMeters, shown(route).mode, pace) }} <span class="unit">min</span></span></span></span></div>
               <div v-if="savedSelectedId === route.id" class="saved-row-actions"><IconButton icon="ph:pencil-simple" label="Rename route" @click="rename(route)" /><IconButton icon="ph:arrows-counter-clockwise" label="Reverse route" :disabled="reversingId === route.id" @click="reverseSaved(route)" /><IconButton icon="ph:export" label="Share route" @click="shareRoute(shown(route))" /><IconButton icon="ph:trash" label="Delete route" danger @click="askDelete(route)" /></div>
             </article></template>
           </div>
@@ -260,6 +277,8 @@ onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); dispose
       <AppFooter />
     </section>
     <div v-if="cardsVisible" class="route-cards" aria-label="Route options"><RouteCard v-for="route in state.routes" :key="route.id" :route="route" :selected="route.id === state.selectedId" :hovered="route.id === hoveredRouteId" :saved="isSaved(route)" :units="units" :pace="pace" @select="selectRoute" @preview="hoveredRouteId = $event" @save="saveRoute" @reverse="reverseRoute" @pace="(mode, value) => pace[mode] = value" /></div>
+    <p v-else-if="noRoutes" class="route-cards route-empty surface" role="status">No routes available</p>
+    <PaceSetup :open="paceSetupOpen" :units="units" :paces="pace" @save="completePaceSetup" />
     <ConfirmDialog :open="pendingDelete !== null" title="Delete this route?" :message="deleteMessage" confirm-label="Delete" @confirm="confirmDelete" @cancel="pendingDelete = null" />
     <RouteLegend v-if="activeRoute && !(mobile && expanded && tab === 'plan' && !shared)":route="activeRoute" :units="units" :open="legendOpen" :mobile="mobile" :pace="pace" @toggle="legendOpen = !legendOpen; if (legendOpen && mobile) expanded = false" @highlight="highlighted = $event" />
     <Transition name="toast"><div v-if="toast" class="toast-message surface" role="status"><Icon name="ph:info" size="20" /><span>{{ toast }}</span><IconButton icon="ph:x" label="Dismiss message" @click="toast = ''" /></div></Transition>

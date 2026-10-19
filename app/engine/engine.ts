@@ -1,5 +1,6 @@
 import { copySettings, PlanningFailure } from '../domain/planner'
 import type { Coordinates, GraphManifest, PlanningNotice, PlanningRequest, PlanningResult, PlanningSettings, RouteCandidate } from '../domain/planner'
+import { gainLimits, SURFACE_GRACE_METERS } from '../domain/units'
 import { profileFor } from './elevation'
 import type { ElevationSource } from './elevation'
 import { tileKey, WAY } from './format'
@@ -7,7 +8,7 @@ import type { DecodedTile } from './format'
 import { bearing, destination, haversine, lineLength, projectOnSegment, projector } from './geo'
 import { RoutingGraph } from './graph'
 import { edgeLengths, mulberry32, overlap, pathCoordinates, pathCost, pathLength, removeParallelSpurs, removeSpurs, repeatedLength, routeThrough, usableDegree } from './loops'
-import { buildProfile } from './profile'
+import { buildProfile, offPavement } from './profile'
 import type { Profile } from './profile'
 import { PathFinder } from './search'
 import { buildTurns } from './turns'
@@ -25,12 +26,10 @@ export interface EngineContext {
 const CANDIDATES = 12
 const TIME_BUDGET_MS = 6000
 const TORTUOSITY = 1.3
-const METERS_PER_FOOT = 0.3048
-const METERS_PER_MILE = 1609.344
 
 type Bounds = [number, number, number, number]
 interface Fixed { node: number; point: Coordinates; kind: 'stop' | 'joint' }
-interface Candidate { path: number[]; length: number; cost: number; edges: Map<number, number>; score: number; joints: boolean }
+interface Candidate { path: number[]; length: number; cost: number; edges: Map<number, number>; score: number; joints: boolean; fits: boolean }
 
 function abortIfCancelled(signal: AbortSignal) { if (signal.aborted) throw new DOMException('Cancelled', 'AbortError') }
 
@@ -98,16 +97,16 @@ function usableEdge(graph: RoutingGraph, settings: PlanningSettings) {
   return (edge: number) => allowed(edge) && root(graph.edgeA[edge]!) === main
 }
 
-function elevationRate(settings: PlanningSettings): { low: number; high: number } | null {
-  const perMile = (feet: number) => feet * METERS_PER_FOOT / METERS_PER_MILE
-  if (settings.elevation === 'flat') return { low: 0, high: perMile(20) }
-  if (settings.elevation === 'hilly') return { low: perMile(40), high: perMile(80) }
-  if (settings.elevation === 'steep') return { low: perMile(100), high: Infinity }
-  if (settings.elevation === 'custom' && settings.customGainMeters !== null) {
-    const rate = settings.customGainMeters / settings.distanceMeters
-    return { low: rate * 0.85, high: rate * 1.15 }
+/** Keeps to the surface choice, allowing a mile of the other surface. Mixed takes anything. */
+export function surfaceFits(graph: RoutingGraph, path: number[], surface: PlanningSettings['surface']): boolean {
+  if (surface === 'mixed') return true
+  let off = 0, paved = 0
+  for (const halfEdge of path) {
+    const edge = halfEdge >> 1, way = graph.edgeWay[edge]!
+    if (offPavement(graph.wayFlags[way]!, graph.wayHighway[way]!)) off += graph.edgeLength[edge]!
+    else paved += graph.edgeLength[edge]!
   }
-  return null
+  return surface === 'trail' ? paved <= SURFACE_GRACE_METERS : off <= SURFACE_GRACE_METERS
 }
 
 export async function plan(request: PlanningRequest, context: EngineContext): Promise<PlanningResult> {
@@ -168,8 +167,8 @@ export async function plan(request: PlanningRequest, context: EngineContext): Pr
     const finder = new PathFinder(graph, profile)
     const result = await generate({ graph, profile, finder, settings, startNode, stops, joints, required, context, now })
     notices.push(...result.notices)
+    // An empty list is a result, not an error. The planner shows "No routes available" where the cards would be.
     const routes = result.paths.map(toRoute)
-    if (!routes.length) throw new PlanningFailure('no-route', settings.mode === 'bike' ? 'No rideable loops from here.' : 'No loops from here.')
     return { routes, adjustedForLegality: false, elevationAvailable, notices }
   }
 
@@ -227,7 +226,6 @@ async function generate(input: GenerateInput): Promise<{ paths: number[][]; noti
   const degree = usableDegree(graph, profile)
   const deadline = now() + TIME_BUDGET_MS
   const notices: PlanningNotice[] = []
-  const rate = elevationRate(settings)
 
   const corner = (point: Coordinates): number | null => {
     let best = -1, bestScore = Infinity
@@ -245,16 +243,16 @@ async function generate(input: GenerateInput): Promise<{ paths: number[][]; noti
     const distanceError = Math.abs(length - target) / target
     const repeated = repeatedLength(graph, path) / Math.max(1, length)
     let score = 3 * Math.max(0, distanceError - 0.03) + 2 * repeated + 0.4 * Math.log(Math.max(0.3, cost / Math.max(1, length)))
-    if (rate && graph.edgeCount) {
-      const coordinates = pathCoordinates(graph, path)
-      const elevation = profileFor(coordinates, context.elevation)
-      if (elevation) {
-        const value = elevation.gain / Math.max(1, length)
-        const miss = value < rate.low ? (rate.low - value) / Math.max(rate.low, 0.001) : value > rate.high ? (value - rate.high) / Math.max(rate.high, 0.001) : 0
-        score += 1.5 * Math.min(2, miss)
-      }
+    // The elevation band steers the search. The fit check below decides what is kept.
+    const limits = gainLimits(settings, length)
+    const gain = limits ? profileFor(pathCoordinates(graph, path), context.elevation)?.gain ?? null : null
+    if (limits && gain !== null) {
+      const miss = gain < limits.low ? (limits.low - gain) / Math.max(limits.low, 1) : gain > limits.high ? (gain - limits.high) / Math.max(limits.high, 1) : 0
+      score += 1.5 * Math.min(2, miss)
     }
-    return { path, length, cost, edges: edgeLengths(graph, path), score, joints: usesJoints }
+    const fits = surfaceFits(graph, path, settings.surface) && (!limits || (gain !== null && gain >= limits.low && gain <= limits.high))
+    if (!fits) score += 10
+    return { path, length, cost, edges: edgeLengths(graph, path), score, joints: usesJoints, fits }
   }
 
   const candidates: Candidate[] = []
@@ -271,7 +269,7 @@ async function generate(input: GenerateInput): Promise<{ paths: number[][]; noti
     }
     if (shortest && pathLength(graph, shortest) > target * 1.1) {
       notices.push({ code: 'stops-over-budget', meters: pathLength(graph, shortest) })
-      return { paths: [shortest], notices }
+      return { paths: evaluate(shortest, false).fits ? [shortest] : [], notices }
     }
   }
 
@@ -351,7 +349,7 @@ async function generate(input: GenerateInput): Promise<{ paths: number[][]; noti
   const picked: Candidate[] = []
   for (const candidate of candidates) {
     if (picked.length >= 3) break
-    if (picked.some(p => overlap(p.edges, candidate.edges) > 0.55)) continue
+    if (!candidate.fits || picked.some(p => overlap(p.edges, candidate.edges) > 0.55)) continue
     picked.push(candidate)
   }
   const closest = picked[0]

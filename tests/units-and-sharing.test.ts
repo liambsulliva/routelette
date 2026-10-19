@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { commitDistance, distanceLimits, elevationCaption, gainText, METERS_PER_MILE, toDistance } from '../app/domain/units'
+import { commitDistance, distanceLimits, elevationCaption, gainText, METERS_PER_MILE, paceFor, paceFromInput, paceSuffix, paceText, toDistance } from '../app/domain/units'
 import { previewRoutes } from '../app/services/fixture-planner'
 import { decodeRoute, encodeRoute } from '../app/services/share'
+
+describe('pace', () => {
+  it('stores minutes per mile and shows the same pace per kilometer', () => {
+    expect(paceFor(9.5, 'mi')).toBe(9.5)
+    expect(paceFor(9.5, 'km')).toBeCloseTo(9.5 / 1.609344)
+    expect(paceFromInput(9.5, 'mi')).toBe(9.5)
+    expect(paceFromInput(5.9, 'km')).toBeCloseTo(5.9 * 1.609344)
+  })
+  it('formats the shown value to two decimals and labels the unit', () => {
+    expect(paceText(9.5, 'mi')).toBe('9.5')
+    expect(paceText(9.5, 'km')).toBe('5.9')
+    expect(paceSuffix('mi')).toBe('min/mi')
+    expect(paceSuffix('km')).toBe('min/km')
+  })
+})
 
 describe('distance entry', () => {
   it('accepts typed distances beyond the slider and clamps them at the activity cap', () => {

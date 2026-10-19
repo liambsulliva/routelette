@@ -1,7 +1,11 @@
-import type { ElevationChoice, Mode, Units } from './planner'
+import type { ElevationChoice, Mode, PlanningSettings, Units } from './planner'
 
 export const METERS_PER_MILE = 1609.344
 export const METERS_PER_FOOT = 0.3048
+/** Grace on each edge of an elevation band, so a route just outside the band still counts. */
+export const ELEVATION_GRACE_METERS = 50 * METERS_PER_FOOT
+/** A route may take up to this much of the other surface before the surface choice rejects it. */
+export const SURFACE_GRACE_METERS = METERS_PER_MILE
 export const MODE_LIMITS: Record<Mode, { minimum: number; maximum: number; step: number; cap: number; default: number }> = {
   bike: { minimum: 5, maximum: 60, step: 1, cap: 150, default: 15 },
   run: { minimum: 1, maximum: 26, step: 0.5, cap: 50, default: 5 },
@@ -30,6 +34,28 @@ export function clampToMode(meters: number, mode: Mode): number {
 }
 export function minutesFor(meters: number, mode: Mode, pace: Record<Mode, number>): number {
   return Math.max(1, Math.round(meters / METERS_PER_MILE * pace[mode]))
+}
+/** Pace is stored as minutes per mile. Kilometers show the same pace per kilometer. */
+export const PACE_LIMITS = { minimum: 1, maximum: 120 }
+const KILOMETERS_PER_MILE = METERS_PER_MILE / 1000
+export function paceFor(minutesPerMile: number, units: Units): number {
+  return units === 'mi' ? minutesPerMile : minutesPerMile / KILOMETERS_PER_MILE
+}
+/** Converts a typed pace back to minutes per mile. */
+export function paceFromInput(value: number, units: Units): number {
+  return units === 'mi' ? value : value * KILOMETERS_PER_MILE
+}
+export function paceSuffix(units: Units): string { return units === 'mi' ? 'min/mi' : 'min/km' }
+export function paceText(minutesPerMile: number, units: Units): string { return String(Math.round(paceFor(minutesPerMile, units) * 100) / 100) }
+/** Total gain, in meters, that a route of this length may have for the elevation choice, grace included. Null when the choice doesn't constrain gain. */
+export function gainLimits(settings: Pick<PlanningSettings, 'elevation' | 'customGainMeters'>, lengthMeters: number): { low: number; high: number } | null {
+  const perMile = (feet: number) => feet * METERS_PER_FOOT * lengthMeters / METERS_PER_MILE
+  const grace = ELEVATION_GRACE_METERS
+  if (settings.elevation === 'flat') return { low: 0, high: perMile(20) + grace }
+  if (settings.elevation === 'hilly') return { low: Math.max(0, perMile(40) - grace), high: perMile(80) + grace }
+  if (settings.elevation === 'steep') return { low: Math.max(0, perMile(100) - grace), high: Infinity }
+  if (settings.elevation === 'custom' && settings.customGainMeters !== null) return { low: Math.max(0, settings.customGainMeters - grace), high: settings.customGainMeters + grace }
+  return null
 }
 export function elevationCaption(choice: ElevationChoice, distanceMeters: number, units: Units): string {
   const miles = distanceMeters / METERS_PER_MILE
