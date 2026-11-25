@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Coordinates } from '../domain/planner'
-import { routeThumbnail } from '../domain/units'
-const props = defineProps<{ coordinates: Coordinates[] }>()
-const points = computed(() => routeThumbnail(props.coordinates))
+import type { Coordinates } from '../domain/planner';
+import { routeThumbnail } from '../domain/units';
+const props = defineProps<{ coordinates: Coordinates[] }>();
+const points = computed(() => routeThumbnail(props.coordinates));
 </script>
 
 <template>

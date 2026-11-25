@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ busy?: boolean; disabled?: boolean; label?: string }>(), { busy: false, disabled: false, label: 'Roll' })
+withDefaults(defineProps<{ busy?: boolean; disabled?: boolean; label?: string }>(), { busy: false, disabled: false, label: 'Roll' });
 </script>
 
 <template>

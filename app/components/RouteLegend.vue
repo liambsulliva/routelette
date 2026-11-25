@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { Coordinates, Mode, RouteCandidate, Units } from '../domain/planner'
-import { distanceText, gainText } from '../domain/units'
-const props = defineProps<{ route: RouteCandidate; units: Units; open: boolean; mobile: boolean; pace: Record<Mode, number> }>()
-defineEmits<{ toggle: []; highlight: [points: Coordinates[]] }>()
-const directions: Record<string, string> = { straight: 'ph:arrow-up', left: 'ph:arrow-bend-up-left', right: 'ph:arrow-bend-up-right', 'slight-left': 'ph:arrow-up-left', 'slight-right': 'ph:arrow-up-right', arrive: 'ph:flag-checkered' }
+import type { Coordinates, Mode, RouteCandidate, Units } from '../domain/planner';
+import { distanceText, gainText } from '../domain/units';
+const props = defineProps<{ route: RouteCandidate; units: Units; open: boolean; mobile: boolean; pace: Record<Mode, number> }>();
+defineEmits<{ toggle: []; highlight: [points: Coordinates[]] }>();
+const directions: Record<string, string> = { straight: 'ph:arrow-up', left: 'ph:arrow-bend-up-left', right: 'ph:arrow-bend-up-right', 'slight-left': 'ph:arrow-up-left', 'slight-right': 'ph:arrow-up-right', arrive: 'ph:flag-checkered' };
 const profile = computed(() => {
-  const values = props.route.elevationProfile
-  if (values.length < 2) return ''
-  const min = Math.min(...values), range = Math.max(5, Math.max(...values) - min)
-  return values.map((v, i) => `${(i / (values.length - 1) * 288).toFixed(1)},${(52 - (v - min) / range * 40).toFixed(1)}`).join(' ')
-})
+  const values = props.route.elevationProfile;
+  if (values.length < 2) return '';
+  const min = Math.min(...values), range = Math.max(5, Math.max(...values) - min);
+  return values.map((v, i) => `${(i / (values.length - 1) * 288).toFixed(1)},${(52 - (v - min) / range * 40).toFixed(1)}`).join(' ');
+});
 </script>
 
 <template>

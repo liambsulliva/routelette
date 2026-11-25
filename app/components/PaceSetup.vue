@@ -1,34 +1,34 @@
 <script setup lang="ts">
-import type { Mode, Units } from '../domain/planner'
-import { MODE_ICONS } from '../domain/planner'
-import { PACE_LIMITS, paceFor, paceFromInput, paceSuffix, paceText } from '../domain/units'
-const props = defineProps<{ open: boolean; units: Units; paces: Record<Mode, number> }>()
-const emit = defineEmits<{ save: [paces: Record<Mode, number>] }>()
-const rows: { mode: Mode; label: string }[] = [{ mode: 'bike', label: 'Biking' }, { mode: 'run', label: 'Running' }, { mode: 'walk', label: 'Walking' }]
-const dialog = useTemplateRef<HTMLDialogElement>('dialog')
-const drafts = reactive<Record<Mode, string>>({ bike: '', run: '', walk: '' })
+import type { Mode, Units } from '../domain/planner';
+import { MODE_ICONS } from '../domain/planner';
+import { PACE_LIMITS, paceFor, paceFromInput, paceSuffix, paceText } from '../domain/units';
+const props = defineProps<{ open: boolean; units: Units; paces: Record<Mode, number> }>();
+const emit = defineEmits<{ save: [paces: Record<Mode, number>] }>();
+const rows: { mode: Mode; label: string }[] = [{ mode: 'bike', label: 'Biking' }, { mode: 'run', label: 'Running' }, { mode: 'walk', label: 'Walking' }];
+const dialog = useTemplateRef<HTMLDialogElement>('dialog');
+const drafts = reactive<Record<Mode, string>>({ bike: '', run: '', walk: '' });
 /** The text each row opened with, so a row the user never edits keeps its exact pace. */
-const shown = reactive<Record<Mode, string>>({ bike: '', run: '', walk: '' })
-const inputMin = computed(() => paceFor(PACE_LIMITS.minimum, props.units))
-const inputMax = computed(() => paceFor(PACE_LIMITS.maximum, props.units))
+const shown = reactive<Record<Mode, string>>({ bike: '', run: '', walk: '' });
+const inputMin = computed(() => paceFor(PACE_LIMITS.minimum, props.units));
+const inputMax = computed(() => paceFor(PACE_LIMITS.maximum, props.units));
 const valid = computed(() => rows.every(({ mode }) => {
-  const value = paceFromInput(Number(drafts[mode]), props.units)
+  const value = paceFromInput(Number(drafts[mode]), props.units);
   // v-model on a number input stores a number, and an empty box reads as 0, below the minimum.
-  return Number.isFinite(value) && value >= PACE_LIMITS.minimum && value <= PACE_LIMITS.maximum
-}))
+  return Number.isFinite(value) && value >= PACE_LIMITS.minimum && value <= PACE_LIMITS.maximum;
+}));
 // Opens with the current values, which start as the defaults on first run.
 watch(() => props.open, open => {
   if (open) {
-    for (const { mode } of rows) shown[mode] = drafts[mode] = paceText(props.paces[mode], props.units)
-    if (!dialog.value?.open) dialog.value?.showModal()
-  } else if (dialog.value?.open) dialog.value.close()
-})
+    for (const { mode } of rows) shown[mode] = drafts[mode] = paceText(props.paces[mode], props.units);
+    if (!dialog.value?.open) dialog.value?.showModal();
+  } else if (dialog.value?.open) dialog.value.close();
+});
 function save() {
-  if (!valid.value) return
-  const paces = { ...props.paces }
+  if (!valid.value) return;
+  const paces = { ...props.paces };
   // A row the user didn't edit keeps its stored pace. Converting it to kilometers and back would round it.
-  for (const { mode } of rows) if (String(drafts[mode]) !== shown[mode]) paces[mode] = paceFromInput(Number(drafts[mode]), props.units)
-  emit('save', paces)
+  for (const { mode } of rows) if (String(drafts[mode]) !== shown[mode]) paces[mode] = paceFromInput(Number(drafts[mode]), props.units);
+  emit('save', paces);
 }
 </script>
 

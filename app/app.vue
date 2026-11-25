@@ -1,314 +1,314 @@
 <script setup lang="ts">
-import type { Coordinates, Mode, Place, PlanningSettings, RouteCandidate, Units } from './domain/planner'
-import { MODE_ICONS } from './domain/planner'
-import { createPlanner, noRoutesShown } from './domain/controller'
-import { DEFAULT_PACE, distanceText, gainText, minutesFor, toDistance, METERS_PER_MILE } from './domain/units'
-import { LOCATE_OPTIONS, locationErrorMessage } from './domain/location'
-import { needsPaceSetup, PACE_SETUP_KEY } from './domain/preferences'
-import { COLLAPSED_HEIGHT, COLLAPSED_HEIGHT_WITH_START, EXPANDED_INSET, dragBegun, sheetDragScrolls, sheetHeight, sheetSettle, sheetShowsExpanded } from './domain/sheet'
-import { createFixturePlanner, createUnavailablePlanner, PREVIEW_START, PREVIEW_STOP, previewRoutes, previewSavedRoutes } from './services/fixture-planner'
-import { createSavedRoutes } from './services/saved-routes'
-import { encodeRoute, decodeRoute } from './services/share'
-import { createWorkerPlanner } from './services/worker-planner'
+import type { Coordinates, Mode, Place, PlanningSettings, RouteCandidate, Units } from './domain/planner';
+import { MODE_ICONS } from './domain/planner';
+import { createPlanner, noRoutesShown } from './domain/controller';
+import { DEFAULT_PACE, distanceText, gainText, minutesFor, toDistance, METERS_PER_MILE } from './domain/units';
+import { LOCATE_OPTIONS, locationErrorMessage } from './domain/location';
+import { needsPaceSetup, PACE_SETUP_KEY } from './domain/preferences';
+import { COLLAPSED_HEIGHT, COLLAPSED_HEIGHT_WITH_START, EXPANDED_INSET, dragBegun, sheetDragScrolls, sheetHeight, sheetSettle, sheetShowsExpanded } from './domain/sheet';
+import { createFixturePlanner, createUnavailablePlanner, PREVIEW_START, PREVIEW_STOP, previewRoutes, previewSavedRoutes } from './services/fixture-planner';
+import { createSavedRoutes } from './services/saved-routes';
+import { encodeRoute, decodeRoute } from './services/share';
+import { createWorkerPlanner } from './services/worker-planner';
 
-const config = useRuntimeConfig()
+const config = useRuntimeConfig();
 // Social preview images need absolute URLs. The request's own origin keeps them right on whichever domain serves the app.
-const requestUrl = useRequestURL()
-const socialImage = () => new URL('/brand/social-preview.png', requestUrl).href
+const requestUrl = useRequestURL();
+const socialImage = () => new URL('/brand/social-preview.png', requestUrl).href;
 useSeoMeta({
   ogImage: socialImage,
   ogImageWidth: 1200,
   ogImageHeight: 630,
   ogImageAlt: "Routelette: The better way to circle back.",
   twitterImage: socialImage,
-})
-const fixtureMode = config.public.fixtureMode === true || String(config.public.fixtureMode) === 'true'
-const planner = createPlanner(fixtureMode ? createFixturePlanner() : config.public.graphManifestUrl ? createWorkerPlanner(String(config.public.graphManifestUrl)) : createUnavailablePlanner())
-const { state, selected } = planner
-const tab = ref<'plan' | 'saved'>('plan'), shared = ref(false), expanded = ref(false), legendOpen = ref(false)
-const theme = ref<'light' | 'dark' | 'system'>('system'), systemDark = ref(false), units = ref<Units>('mi'), reducedMotion = ref(false)
-const dark = computed(() => theme.value === 'dark' || theme.value === 'system' && systemDark.value)
-const pace = reactive<Record<Mode, number>>({ ...DEFAULT_PACE })
-const mobile = ref(false), panelHeight = ref(94), placing = ref<'start' | 'stop' | null>(null), locating = ref(false)
-const saved = ref<RouteCandidate[]>([]), savedSelectedId = ref(''), renamingId = ref(''), toast = ref('')
-const pendingDelete = ref<RouteCandidate | null>(null), hydrated = ref(false), paceSetupOpen = ref(false)
-const highlighted = ref<Coordinates[]>([]), hoveredRouteId = ref(''), stravaState = ref<'idle' | 'loading' | 'done'>('idle'), reversingId = ref('')
-const panel = useTemplateRef<HTMLElement>('panel')
-const tabsEl = useTemplateRef<HTMLElement>('tabs')
-const indicator = ref({ x: 0, width: 0 })
-const indicatorReady = ref(false)
-const repository = createSavedRoutes()
-let toastTimer: ReturnType<typeof setTimeout> | undefined
-let resizeObserver: ResizeObserver | undefined
-let startSelectionVersion = 0
-const disposers: Array<() => void> = []
-const activeSaved = computed(() => saved.value.find(route => route.id === savedSelectedId.value) ?? null)
-const visibleRoutes = computed(() => tab.value === 'saved' && !shared.value ? (activeSaved.value ? [shown(activeSaved.value)] : []) : state.routes)
-const activeRoute = computed(() => tab.value === 'saved' && !shared.value ? (activeSaved.value ? shown(activeSaved.value) : null) : selected.value)
-const cardsVisible = computed(() => !shared.value && tab.value === 'plan' && state.routes.length > 0 && !(mobile.value && expanded.value))
+});
+const fixtureMode = config.public.fixtureMode === true || String(config.public.fixtureMode) === 'true';
+const planner = createPlanner(fixtureMode ? createFixturePlanner() : config.public.graphManifestUrl ? createWorkerPlanner(String(config.public.graphManifestUrl)) : createUnavailablePlanner());
+const { state, selected } = planner;
+const tab = ref<'plan' | 'saved'>('plan'), shared = ref(false), expanded = ref(false), legendOpen = ref(false);
+const theme = ref<'light' | 'dark' | 'system'>('system'), systemDark = ref(false), units = ref<Units>('mi'), reducedMotion = ref(false);
+const dark = computed(() => theme.value === 'dark' || theme.value === 'system' && systemDark.value);
+const pace = reactive<Record<Mode, number>>({ ...DEFAULT_PACE });
+const mobile = ref(false), panelHeight = ref(94), placing = ref<'start' | 'stop' | null>(null), locating = ref(false);
+const saved = ref<RouteCandidate[]>([]), savedSelectedId = ref(''), renamingId = ref(''), toast = ref('');
+const pendingDelete = ref<RouteCandidate | null>(null), hydrated = ref(false), paceSetupOpen = ref(false);
+const highlighted = ref<Coordinates[]>([]), hoveredRouteId = ref(''), stravaState = ref<'idle' | 'loading' | 'done'>('idle'), reversingId = ref('');
+const panel = useTemplateRef<HTMLElement>('panel');
+const tabsEl = useTemplateRef<HTMLElement>('tabs');
+const indicator = ref({ x: 0, width: 0 });
+const indicatorReady = ref(false);
+const repository = createSavedRoutes();
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+let resizeObserver: ResizeObserver | undefined;
+let startSelectionVersion = 0;
+const disposers: Array<() => void> = [];
+const activeSaved = computed(() => saved.value.find(route => route.id === savedSelectedId.value) ?? null);
+const visibleRoutes = computed(() => tab.value === 'saved' && !shared.value ? (activeSaved.value ? [shown(activeSaved.value)] : []) : state.routes);
+const activeRoute = computed(() => tab.value === 'saved' && !shared.value ? (activeSaved.value ? shown(activeSaved.value) : null) : selected.value);
+const cardsVisible = computed(() => !shared.value && tab.value === 'plan' && state.routes.length > 0 && !(mobile.value && expanded.value));
 // The last plan finished as a generate that found nothing. Errors keep their own message in the panel.
-const noRoutes = computed(() => !shared.value && tab.value === 'plan' && noRoutesShown(state))
+const noRoutes = computed(() => !shared.value && tab.value === 'plan' && noRoutesShown(state));
 const scene = computed(() => ({
   routes: visibleRoutes.value, selectedId: activeRoute.value?.id ?? '', hoveredId: hoveredRouteId.value,
   start: tab.value === 'saved' ? activeSaved.value?.settings.start ?? null : state.settings.start,
   stops: tab.value === 'saved' ? [] : state.settings.stops,
   joints: tab.value === 'saved' ? [] : state.settings.joints,
-}))
+}));
 // A plain counter. Adding the saved-row index let a move up one row cancel the bump out, and the map skipped the redraw.
-const sceneRevision = computed(() => state.revision)
-function showToast(message: string) { toast.value = message; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toast.value = '' }, 5000) }
-watch(() => state.toast, message => { if (message) { showToast(message); state.toast = '' } })
+const sceneRevision = computed(() => state.revision);
+function showToast(message: string) { toast.value = message; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toast.value = ''; }, 5000); }
+watch(() => state.toast, message => { if (message) { showToast(message); state.toast = ''; } });
 const noticeText = computed(() => state.notices.map(notice => {
-  const distance = `${distanceText(notice.meters, units.value)} ${units.value}`
-  if (notice.code === 'start-moved') return units.value === 'mi' ? `Moved ${Math.round(notice.meters / 0.3048 / 10) * 10} ft to the nearest path.` : `Moved ${Math.round(notice.meters / 5) * 5} m to the nearest path.`
-  if (notice.code === 'stops-over-budget') return `Your stops need at least ${distance}.`
-  return `No loops near ${distanceText(state.settings.distanceMeters, units.value)} ${units.value} from here. Closest is ${distance}.`
-}).join(' '))
-const stopsOverBudget = computed(() => state.notices.some(notice => notice.code === 'stops-over-budget'))
-function cycleTheme() { theme.value = theme.value === 'system' ? 'light' : theme.value === 'light' ? 'dark' : 'system' }
-async function change(patch: Partial<PlanningSettings>) { if (patch.start) ++startSelectionVersion; placing.value = null; collapseForReroll(); await planner.change(patch) }
-function toggleExpanded() { expanded.value = !expanded.value; if (expanded.value) legendOpen.value = false }
+  const distance = `${distanceText(notice.meters, units.value)} ${units.value}`;
+  if (notice.code === 'start-moved') return units.value === 'mi' ? `Moved ${Math.round(notice.meters / 0.3048 / 10) * 10} ft to the nearest path.` : `Moved ${Math.round(notice.meters / 5) * 5} m to the nearest path.`;
+  if (notice.code === 'stops-over-budget') return `Your stops need at least ${distance}.`;
+  return `No loops near ${distanceText(state.settings.distanceMeters, units.value)} ${units.value} from here. Closest is ${distance}.`;
+}).join(' '));
+const stopsOverBudget = computed(() => state.notices.some(notice => notice.code === 'stops-over-budget'));
+function cycleTheme() { theme.value = theme.value === 'system' ? 'light' : theme.value === 'light' ? 'dark' : 'system'; }
+async function change(patch: Partial<PlanningSettings>) { if (patch.start) ++startSelectionVersion; placing.value = null; collapseForReroll(); await planner.change(patch); }
+function toggleExpanded() { expanded.value = !expanded.value; if (expanded.value) legendOpen.value = false; }
 /** Anything that rerolls the routes collapses the phone sheet, so the map shows the new result. */
-function collapseForReroll() { if (mobile.value && !shared.value) expanded.value = false }
-function rollRoute() { collapseForReroll(); void planner.roll() }
+function collapseForReroll() { if (mobile.value && !shared.value) expanded.value = false; }
+function rollRoute() { collapseForReroll(); void planner.roll(); }
 /**
  * The phone sheet follows the finger. Its height tracks the drag, and on release it settles open or closed.
  * Only the height is driven here. The view switches as soon as the finger moves a few pixels, not when the sheet reaches its middle.
  */
-const drag = { active: false, started: false, startY: 0, startHeight: 0, minHeight: 0, maxHeight: 0, lastY: 0, lastTime: 0, speed: 0 }
-let settleTimer: ReturnType<typeof setTimeout> | undefined
-function clearSheetStyles() { if (!panel.value) return; panel.value.style.height = ''; panel.value.style.top = ''; panel.value.style.transition = '' }
+const drag = { active: false, started: false, startY: 0, startHeight: 0, minHeight: 0, maxHeight: 0, lastY: 0, lastTime: 0, speed: 0 };
+let settleTimer: ReturnType<typeof setTimeout> | undefined;
+function clearSheetStyles() { if (!panel.value) return; panel.value.style.height = ''; panel.value.style.top = ''; panel.value.style.transition = ''; }
 /** A touch only records where it began. Nothing moves until the finger has dragged past DRAG_SLOP, so taps leave the sheet alone. */
 function dragStart(event: TouchEvent) {
-  const touch = event.touches[0]
-  if (!mobile.value || shared.value || !touch || !panel.value) return
-  const scroller = (event.target as Element | null)?.closest<HTMLElement>('.plan-scroll, .saved-content')
-  if (sheetDragScrolls(expanded.value, scroller?.scrollTop ?? 0)) return
-  const area = panel.value.parentElement?.clientHeight ?? window.innerHeight
-  Object.assign(drag, { active: true, started: false, startY: touch.clientY, startHeight: panel.value.offsetHeight, minHeight: state.settings.start ? COLLAPSED_HEIGHT_WITH_START : COLLAPSED_HEIGHT, maxHeight: area - EXPANDED_INSET, lastY: touch.clientY, lastTime: performance.now(), speed: 0 })
+  const touch = event.touches[0];
+  if (!mobile.value || shared.value || !touch || !panel.value) return;
+  const scroller = (event.target as Element | null)?.closest<HTMLElement>('.plan-scroll, .saved-content');
+  if (sheetDragScrolls(expanded.value, scroller?.scrollTop ?? 0)) return;
+  const area = panel.value.parentElement?.clientHeight ?? window.innerHeight;
+  Object.assign(drag, { active: true, started: false, startY: touch.clientY, startHeight: panel.value.offsetHeight, minHeight: state.settings.start ? COLLAPSED_HEIGHT_WITH_START : COLLAPSED_HEIGHT, maxHeight: area - EXPANDED_INSET, lastY: touch.clientY, lastTime: performance.now(), speed: 0 });
 }
 function dragMove(event: TouchEvent) {
-  const touch = event.touches[0]
-  if (!drag.active || !touch || !panel.value) return
-  const moved = touch.clientY - drag.startY
+  const touch = event.touches[0];
+  if (!drag.active || !touch || !panel.value) return;
+  const moved = touch.clientY - drag.startY;
   if (!drag.started) {
-    if (!dragBegun(moved)) return
+    if (!dragBegun(moved)) return;
     // The drag has begun. A settle still running is cancelled, and the sheet's own styles hold until release.
-    drag.started = true
-    clearTimeout(settleTimer)
-    panel.value.style.transition = 'none'
+    drag.started = true;
+    clearTimeout(settleTimer);
+    panel.value.style.transition = 'none';
   }
-  event.preventDefault()
-  const now = performance.now()
-  drag.speed = (touch.clientY - drag.lastY) / Math.max(1, now - drag.lastTime)
-  drag.lastY = touch.clientY
-  drag.lastTime = now
-  const height = sheetHeight(drag.startHeight, moved, drag.minHeight, drag.maxHeight)
-  panel.value.style.top = 'auto'
-  panel.value.style.height = `${height}px`
-  expanded.value = sheetShowsExpanded(height, drag.minHeight)
+  event.preventDefault();
+  const now = performance.now();
+  drag.speed = (touch.clientY - drag.lastY) / Math.max(1, now - drag.lastTime);
+  drag.lastY = touch.clientY;
+  drag.lastTime = now;
+  const height = sheetHeight(drag.startHeight, moved, drag.minHeight, drag.maxHeight);
+  panel.value.style.top = 'auto';
+  panel.value.style.height = `${height}px`;
+  expanded.value = sheetShowsExpanded(height, drag.minHeight);
 }
 function dragEnd() {
-  const dragged = drag.active && drag.started
-  drag.active = false
-  if (!dragged || !panel.value) return
-  const open = sheetSettle(panel.value.offsetHeight, drag.minHeight, drag.maxHeight, drag.speed) === 'expand'
+  const dragged = drag.active && drag.started;
+  drag.active = false;
+  if (!dragged || !panel.value) return;
+  const open = sheetSettle(panel.value.offsetHeight, drag.minHeight, drag.maxHeight, drag.speed) === 'expand';
   // Reading the height commits the dragged frame, so the settle animates from where the finger left the sheet.
-  void panel.value.offsetHeight
-  panel.value.style.transition = ''
-  panel.value.style.top = 'auto'
-  panel.value.style.height = `${open ? drag.maxHeight : drag.minHeight}px`
+  void panel.value.offsetHeight;
+  panel.value.style.transition = '';
+  panel.value.style.top = 'auto';
+  panel.value.style.height = `${open ? drag.maxHeight : drag.minHeight}px`;
   if (open) {
-    expanded.value = true
-    legendOpen.value = false
-    settleTimer = setTimeout(clearSheetStyles, 300)
+    expanded.value = true;
+    legendOpen.value = false;
+    settleTimer = setTimeout(clearSheetStyles, 300);
   } else {
     // Closing keeps the planning view while the sheet shrinks, and gives way to the summary only once it has landed.
-    settleTimer = setTimeout(() => { expanded.value = false; clearSheetStyles() }, 300)
+    settleTimer = setTimeout(() => { expanded.value = false; clearSheetStyles(); }, 300);
   }
 }
 function placeIndicator() {
-  const button = tabsEl.value?.querySelector<HTMLButtonElement>(`[data-tab="${tab.value}"]`)
-  if (!button) return
-  indicator.value = { x: button.offsetLeft, width: button.offsetWidth }
-  indicatorReady.value = true
+  const button = tabsEl.value?.querySelector<HTMLButtonElement>(`[data-tab="${tab.value}"]`);
+  if (!button) return;
+  indicator.value = { x: button.offsetLeft, width: button.offsetWidth };
+  indicatorReady.value = true;
 }
 /** The direction a saved route currently runs. The original stays stored either way. */
-function shown(route: RouteCandidate) { return route.direction === 'reverse' && route.reverse ? route.reverse : route }
+function shown(route: RouteCandidate) { return route.direction === 'reverse' && route.reverse ? route.reverse : route; }
 function switchTab(next: 'plan' | 'saved') {
-  planner.cancel(); tab.value = next; state.presentation = 'selection'; state.revision++; legendOpen.value = false
-  if (next === 'saved') { savedSelectedId.value ||= saved.value[0]?.id ?? ''; expanded.value = true }
+  planner.cancel(); tab.value = next; state.presentation = 'selection'; state.revision++; legendOpen.value = false;
+  if (next === 'saved') { savedSelectedId.value ||= saved.value[0]?.id ?? ''; expanded.value = true; }
 }
 function selectRoute(id: string, deliberate: boolean) {
-  if (!state.busy && state.selectedId === id) return
-  planner.select(id, deliberate)
+  if (!state.busy && state.selectedId === id) return;
+  planner.select(id, deliberate);
 }
 async function mapClick(point: Coordinates, routeId?: string) {
-  if (shared.value || tab.value === 'saved') return
-  if (placing.value === 'stop') { await addMapStop(point); return }
+  if (shared.value || tab.value === 'saved') return;
+  if (placing.value === 'stop') { await addMapStop(point); return; }
   if (placing.value === 'start' || !state.settings.start) {
-    const version = ++startSelectionVersion
-    const place: Place = { id: `map-${point.join(',')}`, label: `${point[1].toFixed(5)}, ${point[0].toFixed(5)}`, coordinates: point }
-    placing.value = null
+    const version = ++startSelectionVersion;
+    const place: Place = { id: `map-${point.join(',')}`, label: `${point[1].toFixed(5)}, ${point[0].toFixed(5)}`, coordinates: point };
+    placing.value = null;
     try {
-      const names = await $fetch<Place[]>('/api/search', { query: { reverse: 1, lon: point[0], lat: point[1] } })
-      if (names[0]) place.label = names[0].label
+      const names = await $fetch<Place[]>('/api/search', { query: { reverse: 1, lon: point[0], lat: point[1] } });
+      if (names[0]) place.label = names[0].label;
     } catch { /* Coordinates remain a usable label when reverse lookup is unavailable. */ }
-    if (version === startSelectionVersion) await change({ start: place }); return
+    if (version === startSelectionVersion) await change({ start: place }); return;
   }
-  if (routeId && routeId !== state.selectedId || routeId && state.busy) { selectRoute(routeId, true); return }
+  if (routeId && routeId !== state.selectedId || routeId && state.busy) { selectRoute(routeId, true); return; }
   if (routeId && state.settings.joints.length < 10) {
-    state.settings.joints = [...state.settings.joints, point]; state.presentation = 'selection'; state.revision++
+    state.settings.joints = [...state.settings.joints, point]; state.presentation = 'selection'; state.revision++;
   }
 }
 async function moveStop(index: number, point: Coordinates) {
-  const stop = state.settings.stops[index]
-  if (!stop) return
-  const stops = state.settings.stops.map((item, itemIndex) => itemIndex === index ? { ...item, coordinates: point } : { ...item, coordinates: [...item.coordinates] as Coordinates })
-  const moved = change({ stops, orderLocked: true })
+  const stop = state.settings.stops[index];
+  if (!stop) return;
+  const stops = state.settings.stops.map((item, itemIndex) => itemIndex === index ? { ...item, coordinates: point } : { ...item, coordinates: [...item.coordinates] as Coordinates });
+  const moved = change({ stops, orderLocked: true });
   try {
-    const names = await $fetch<Place[]>('/api/search', { query: { reverse: 1, lon: point[0], lat: point[1] } })
-    const current = state.settings.stops[index]
-    if (names[0] && current && current.coordinates[0] === point[0] && current.coordinates[1] === point[1]) current.label = names[0].label
+    const names = await $fetch<Place[]>('/api/search', { query: { reverse: 1, lon: point[0], lat: point[1] } });
+    const current = state.settings.stops[index];
+    if (names[0] && current && current.coordinates[0] === point[0] && current.coordinates[1] === point[1]) current.label = names[0].label;
   } catch { /* The previous name stays when reverse lookup is unavailable. */ }
-  await moved
+  await moved;
 }
 async function addMapStop(point: Coordinates) {
-  if (!state.settings.start || state.settings.stops.length >= 5) return
-  placing.value = null
-  await change({ stops: [...state.settings.stops, { id: `stop-${Date.now()}`, label: `${point[1].toFixed(5)}, ${point[0].toFixed(5)}`, coordinates: point }] })
+  if (!state.settings.start || state.settings.stops.length >= 5) return;
+  placing.value = null;
+  await change({ stops: [...state.settings.stops, { id: `stop-${Date.now()}`, label: `${point[1].toFixed(5)}, ${point[0].toFixed(5)}`, coordinates: point }] });
 }
 function locate() {
-  if (!navigator.geolocation) { state.error = 'Location is off. Search for a start instead.'; return }
-  locating.value = true
+  if (!navigator.geolocation) { state.error = 'Location is off. Search for a start instead.'; return; }
+  locating.value = true;
   navigator.geolocation.getCurrentPosition(position => {
-    locating.value = false; void mapClick([position.coords.longitude, position.coords.latitude])
+    locating.value = false; void mapClick([position.coords.longitude, position.coords.latitude]);
   }, error => {
-    locating.value = false; placing.value = null
-    state.error = locationErrorMessage(error.code)
-  }, LOCATE_OPTIONS)
-  placing.value = 'start'
+    locating.value = false; placing.value = null;
+    state.error = locationErrorMessage(error.code);
+  }, LOCATE_OPTIONS);
+  placing.value = 'start';
 }
 function preview(which: 'results' | 'saved' = 'results') {
-  shared.value = false; tab.value = 'plan'
-  const routes = previewRoutes(); planner.load(routes)
-  state.settings.start = PREVIEW_START; state.settings.stops = [PREVIEW_STOP]; state.settings.distanceMeters = 1.5 * METERS_PER_MILE
-  state.settings.seed = 0; state.presentation = 'generate'; state.revision++
-  if (which === 'saved') { saved.value = previewSavedRoutes(); savedSelectedId.value = saved.value[0]?.id ?? ''; switchTab('saved') }
+  shared.value = false; tab.value = 'plan';
+  const routes = previewRoutes(); planner.load(routes);
+  state.settings.start = PREVIEW_START; state.settings.stops = [PREVIEW_STOP]; state.settings.distanceMeters = 1.5 * METERS_PER_MILE;
+  state.settings.seed = 0; state.presentation = 'generate'; state.revision++;
+  if (which === 'saved') { saved.value = previewSavedRoutes(); savedSelectedId.value = saved.value[0]?.id ?? ''; switchTab('saved'); }
 }
 async function persistSaved() {
-  try { await repository.save(saved.value) } catch { showToast("Couldn't save on this device. Browser storage may be full.") }
+  try { await repository.save(saved.value); } catch { showToast("Couldn't save on this device. Browser storage may be full."); }
 }
-function savedCopy(route: RouteCandidate) { return saved.value.find(item => item.coordinates.length === route.coordinates.length && item.coordinates.every((point, i) => point[0] === route.coordinates[i]?.[0] && point[1] === route.coordinates[i]?.[1])) ?? null }
-function isSaved(route: RouteCandidate) { return savedCopy(route) !== null }
+function savedCopy(route: RouteCandidate) { return saved.value.find(item => item.coordinates.length === route.coordinates.length && item.coordinates.every((point, i) => point[0] === route.coordinates[i]?.[0] && point[1] === route.coordinates[i]?.[1])) ?? null; }
+function isSaved(route: RouteCandidate) { return savedCopy(route) !== null; }
 async function saveRoute(route: RouteCandidate) {
   // A saved result's bookmark asks before it deletes, the same question the trash button in the Saved tab asks.
-  const existing = savedCopy(route)
-  if (existing) { askDelete(existing); return }
-  const copy = JSON.parse(JSON.stringify(route)) as RouteCandidate
-  copy.id = `saved-${crypto.randomUUID()}`
-  copy.name = route.turns.reduce((longest, turn) => turn.distanceMeters > longest.distanceMeters ? turn : longest, route.turns[0] ?? { street: 'Bloomfield', distanceMeters: 0 }).street.replace(/ Avenue$/, ' Ave').replace(/ Street$/, ' St') + ' loop'
-  saved.value.unshift(copy); await persistSaved(); showToast('Route saved.')
+  const existing = savedCopy(route);
+  if (existing) { askDelete(existing); return; }
+  const copy = JSON.parse(JSON.stringify(route)) as RouteCandidate;
+  copy.id = `saved-${crypto.randomUUID()}`;
+  copy.name = route.turns.reduce((longest, turn) => turn.distanceMeters > longest.distanceMeters ? turn : longest, route.turns[0] ?? { street: 'Bloomfield', distanceMeters: 0 }).street.replace(/ Avenue$/, ' Ave').replace(/ Street$/, ' St') + ' loop';
+  saved.value.unshift(copy); await persistSaved(); showToast('Route saved.');
 }
-function chooseSaved(route: RouteCandidate) { planner.cancel(); savedSelectedId.value = route.id; state.presentation = 'saved'; state.revision++; legendOpen.value = false }
-function rename(route: RouteCandidate) { renamingId.value = route.id }
+function chooseSaved(route: RouteCandidate) { planner.cancel(); savedSelectedId.value = route.id; state.presentation = 'saved'; state.revision++; legendOpen.value = false; }
+function rename(route: RouteCandidate) { renamingId.value = route.id; }
 async function commitRename(route: RouteCandidate, name: string) {
-  if (name.trim()) route.name = name.trim().slice(0, 120)
-  renamingId.value = ''; await persistSaved()
+  if (name.trim()) route.name = name.trim().slice(0, 120);
+  renamingId.value = ''; await persistSaved();
 }
 /** Deleting a saved route waits for confirmation. There is no undo, so the dialog is the only safeguard. */
-function askDelete(route: RouteCandidate) { pendingDelete.value = route }
-const deleteMessage = computed(() => pendingDelete.value ? `${pendingDelete.value.name} will be removed from this device. This can't be undone.` : '')
+function askDelete(route: RouteCandidate) { pendingDelete.value = route; }
+const deleteMessage = computed(() => pendingDelete.value ? `${pendingDelete.value.name} will be removed from this device. This can't be undone.` : '');
 async function confirmDelete() {
-  const route = pendingDelete.value
-  pendingDelete.value = null
-  const index = route ? saved.value.findIndex(item => item.id === route.id) : -1
-  if (index < 0) return
-  saved.value.splice(index, 1)
-  if (savedSelectedId.value === route!.id) savedSelectedId.value = saved.value[0]?.id ?? ''
-  state.revision++; await persistSaved()
+  const route = pendingDelete.value;
+  pendingDelete.value = null;
+  const index = route ? saved.value.findIndex(item => item.id === route.id) : -1;
+  if (index < 0) return;
+  saved.value.splice(index, 1);
+  if (savedSelectedId.value === route!.id) savedSelectedId.value = saved.value[0]?.id ?? '';
+  state.revision++; await persistSaved();
 }
 async function shareRoute(route: RouteCandidate, copyOnly = false) {
   try {
-    const url = `${window.location.origin}/r#${encodeRoute(route)}`
-    if (!copyOnly && navigator.share) { try { await navigator.share({ title: route.name, url }); return } catch (error) { if (error instanceof Error && error.name === 'AbortError') return } }
-    await navigator.clipboard.writeText(url); showToast('Link copied.')
-  } catch (error) { showToast(error instanceof Error ? error.message : "Couldn't copy the link.") }
+    const url = `${window.location.origin}/r#${encodeRoute(route)}`;
+    if (!copyOnly && navigator.share) { try { await navigator.share({ title: route.name, url }); return; } catch (error) { if (error instanceof Error && error.name === 'AbortError') return; } }
+    await navigator.clipboard.writeText(url); showToast('Link copied.');
+  } catch (error) { showToast(error instanceof Error ? error.message : "Couldn't copy the link."); }
 }
-async function reverseRoute() { await planner.run('reverse') }
+async function reverseRoute() { await planner.run('reverse'); }
 /** Calculates a saved route's legal reverse once, then flips between the two stored directions. The Plan tab's results stay as they are. */
 async function reverseSaved(route: RouteCandidate) {
-  if (reversingId.value) return
+  if (reversingId.value) return;
   if (!route.reverse) {
-    reversingId.value = route.id
+    reversingId.value = route.id;
     try {
-      const { route: calculated, adjustedForLegality } = await planner.reverseCopy(route)
-      route.reverse = { ...calculated, id: `${route.id}-reverse`, name: route.name }
-      if (adjustedForLegality) showToast('Route adjusted to follow road rules.')
+      const { route: calculated, adjustedForLegality } = await planner.reverseCopy(route);
+      route.reverse = { ...calculated, id: `${route.id}-reverse`, name: route.name };
+      if (adjustedForLegality) showToast('Route adjusted to follow road rules.');
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Can't load routes right now.")
-      return
-    } finally { reversingId.value = '' }
+      showToast(error instanceof Error ? error.message : "Can't load routes right now.");
+      return;
+    } finally { reversingId.value = ''; }
   }
-  route.direction = route.direction === 'reverse' ? 'forward' : 'reverse'
-  if (savedSelectedId.value === route.id) { state.presentation = 'reverse'; state.revision++ }
-  await persistSaved()
+  route.direction = route.direction === 'reverse' ? 'forward' : 'reverse';
+  if (savedSelectedId.value === route.id) { state.presentation = 'reverse'; state.revision++; }
+  await persistSaved();
 }
-function planOwn() { shared.value = false; state.routes = []; state.selectedId = ''; state.revision++; window.history.replaceState(null, '', '/'); void planner.run() }
+function planOwn() { shared.value = false; state.routes = []; state.selectedId = ''; state.revision++; window.history.replaceState(null, '', '/'); void planner.run(); }
 function importStrava() { showToast('Strava imports coming soon.'); }
 
 onMounted(async () => {
   const watchMedia = (query: string, callback: (matches: boolean) => void) => {
-    const media = window.matchMedia(query); callback(media.matches)
-    const listener = () => callback(media.matches); media.addEventListener('change', listener); disposers.push(() => media.removeEventListener('change', listener))
-  }
-  watchMedia('(max-width: 767px)', value => { mobile.value = value })
-  watchMedia('(prefers-color-scheme: dark)', value => { systemDark.value = value })
-  reducedMotion.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const media = window.matchMedia(query); callback(media.matches);
+    const listener = () => callback(media.matches); media.addEventListener('change', listener); disposers.push(() => media.removeEventListener('change', listener));
+  };
+  watchMedia('(max-width: 767px)', value => { mobile.value = value; });
+  watchMedia('(prefers-color-scheme: dark)', value => { systemDark.value = value; });
+  reducedMotion.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   try {
-    const stored = JSON.parse(localStorage.getItem('routelette:preferences:v1') ?? 'null')
+    const stored = JSON.parse(localStorage.getItem('routelette:preferences:v1') ?? 'null');
     if (stored) {
-      if (['system', 'light', 'dark'].includes(stored.theme)) theme.value = stored.theme
-      if (stored.units === 'mi' || stored.units === 'km') units.value = stored.units
-      if (typeof stored.reducedMotion === 'boolean') reducedMotion.value = stored.reducedMotion
-      for (const mode of ['bike', 'run', 'walk'] as const) if (typeof stored.pace?.[mode] === 'number' && stored.pace[mode] > 0) pace[mode] = stored.pace[mode]
-      if (typeof stored.avoidBusyRoads === 'boolean') state.settings.avoidBusyRoads = stored.avoidBusyRoads
-      if (typeof stored.preferInfrastructure === 'boolean') state.settings.preferInfrastructure = stored.preferInfrastructure
-    } else units.value = /-(US|LR|MM)\b/i.test(navigator.language) ? 'mi' : 'km'
-    if (needsPaceSetup(localStorage)) paceSetupOpen.value = true
-    saved.value = await repository.load()
+      if (['system', 'light', 'dark'].includes(stored.theme)) theme.value = stored.theme;
+      if (stored.units === 'mi' || stored.units === 'km') units.value = stored.units;
+      if (typeof stored.reducedMotion === 'boolean') reducedMotion.value = stored.reducedMotion;
+      for (const mode of ['bike', 'run', 'walk'] as const) if (typeof stored.pace?.[mode] === 'number' && stored.pace[mode] > 0) pace[mode] = stored.pace[mode];
+      if (typeof stored.avoidBusyRoads === 'boolean') state.settings.avoidBusyRoads = stored.avoidBusyRoads;
+      if (typeof stored.preferInfrastructure === 'boolean') state.settings.preferInfrastructure = stored.preferInfrastructure;
+    } else units.value = /-(US|LR|MM)\b/i.test(navigator.language) ? 'mi' : 'km';
+    if (needsPaceSetup(localStorage)) paceSetupOpen.value = true;
+    saved.value = await repository.load();
   } catch { /* Defaults also work when browser storage is unavailable. */ }
-  const query = new URLSearchParams(window.location.search)
-  if (query.get('theme') === 'light' || query.get('theme') === 'dark') theme.value = query.get('theme') as 'light' | 'dark'
-  if (fixtureMode && query.has('preview')) preview(query.get('preview') === 'saved' ? 'saved' : 'results')
-  if (query.get('expanded') === '1') expanded.value = true
+  const query = new URLSearchParams(window.location.search);
+  if (query.get('theme') === 'light' || query.get('theme') === 'dark') theme.value = query.get('theme') as 'light' | 'dark';
+  if (fixtureMode && query.has('preview')) preview(query.get('preview') === 'saved' ? 'saved' : 'results');
+  if (query.get('expanded') === '1') expanded.value = true;
   if (window.location.pathname === '/r') {
-    const route = decodeRoute(window.location.hash.slice(1))
-    if (route) { shared.value = true; tab.value = 'plan'; planner.load([route], 'shared'); if (!mobile.value) expanded.value = true }
-    else state.error = 'This route link could not be opened.'
+    const route = decodeRoute(window.location.hash.slice(1));
+    if (route) { shared.value = true; tab.value = 'plan'; planner.load([route], 'shared'); if (!mobile.value) expanded.value = true; }
+    else state.error = 'This route link could not be opened.';
   }
-  hydrated.value = true
-  await nextTick()
-  placeIndicator()
-  if (panel.value) { resizeObserver = new ResizeObserver(entries => { if (entries[0]) panelHeight.value = entries[0].contentRect.height + 32; placeIndicator() }); resizeObserver.observe(panel.value) }
-})
-watch([tab, mobile, expanded], () => nextTick(placeIndicator))
+  hydrated.value = true;
+  await nextTick();
+  placeIndicator();
+  if (panel.value) { resizeObserver = new ResizeObserver(entries => { if (entries[0]) panelHeight.value = entries[0].contentRect.height + 32; placeIndicator(); }); resizeObserver.observe(panel.value); }
+});
+watch([tab, mobile, expanded], () => nextTick(placeIndicator));
 watch([dark, reducedMotion], () => {
-  if (!import.meta.client) return
-  document.documentElement.dataset.theme = dark.value ? 'dark' : 'light'
-  document.documentElement.dataset.reducedMotion = String(reducedMotion.value)
-}, { immediate: true })
+  if (!import.meta.client) return;
+  document.documentElement.dataset.theme = dark.value ? 'dark' : 'light';
+  document.documentElement.dataset.reducedMotion = String(reducedMotion.value);
+}, { immediate: true });
 /** Saves display and pace settings on this device. The first saved copy also marks the setup as done. */
 function persistPreferences() {
-  if (!import.meta.client || !hydrated.value) return
-  try { localStorage.setItem('routelette:preferences:v1', JSON.stringify({ theme: theme.value, units: units.value, reducedMotion: reducedMotion.value, pace, avoidBusyRoads: state.settings.avoidBusyRoads, preferInfrastructure: state.settings.preferInfrastructure })) } catch { /* Settings remain usable without persistence. */ }
+  if (!import.meta.client || !hydrated.value) return;
+  try { localStorage.setItem('routelette:preferences:v1', JSON.stringify({ theme: theme.value, units: units.value, reducedMotion: reducedMotion.value, pace, avoidBusyRoads: state.settings.avoidBusyRoads, preferInfrastructure: state.settings.preferInfrastructure })); } catch { /* Settings remain usable without persistence. */ }
 }
-watch([theme, units, reducedMotion, pace, () => state.settings.avoidBusyRoads, () => state.settings.preferInfrastructure], persistPreferences, { deep: true })
+watch([theme, units, reducedMotion, pace, () => state.settings.avoidBusyRoads, () => state.settings.preferInfrastructure], persistPreferences, { deep: true });
 function completePaceSetup(paces: Record<Mode, number>) {
-  Object.assign(pace, paces); paceSetupOpen.value = false; persistPreferences()
-  try { localStorage.setItem(PACE_SETUP_KEY, '1') } catch { /* Without storage the setup opens again on the next load. */ }
+  Object.assign(pace, paces); paceSetupOpen.value = false; persistPreferences();
+  try { localStorage.setItem(PACE_SETUP_KEY, '1'); } catch { /* Without storage the setup opens again on the next load. */ }
 }
-onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); disposers.forEach(dispose => dispose()); clearTimeout(toastTimer) })
+onBeforeUnmount(() => { planner.dispose(); resizeObserver?.disconnect(); disposers.forEach(dispose => dispose()); clearTimeout(toastTimer); });
 </script>
 
 <template>

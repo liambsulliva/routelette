@@ -1,11 +1,11 @@
 <script setup lang="ts">
-const props = defineProps<{ open: boolean; title: string; message: string; confirmLabel: string }>()
-const emit = defineEmits<{ confirm: []; cancel: [] }>()
-const dialog = useTemplateRef<HTMLDialogElement>('dialog')
+const props = defineProps<{ open: boolean; title: string; message: string; confirmLabel: string }>();
+const emit = defineEmits<{ confirm: []; cancel: [] }>();
+const dialog = useTemplateRef<HTMLDialogElement>('dialog');
 watch(() => props.open, open => {
-  if (open && !dialog.value?.open) dialog.value?.showModal()
-  if (!open && dialog.value?.open) dialog.value.close()
-})
+  if (open && !dialog.value?.open) dialog.value?.showModal();
+  if (!open && dialog.value?.open) dialog.value.close();
+});
 </script>
 
 <template>

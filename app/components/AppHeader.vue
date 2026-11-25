@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Units } from '../domain/planner'
-defineProps<{ theme: 'light' | 'dark' | 'system'; dark: boolean; units: Units; reducedMotion: boolean }>()
-defineEmits<{ theme: []; units: []; motion: [] }>()
+import type { Units } from '../domain/planner';
+defineProps<{ theme: 'light' | 'dark' | 'system'; dark: boolean; units: Units; reducedMotion: boolean }>();
+defineEmits<{ theme: []; units: []; motion: [] }>();
 </script>
 
 <template>

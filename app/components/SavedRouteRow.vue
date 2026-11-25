@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import type { Mode, RouteCandidate, Units } from '../domain/planner'
-import { MODE_ICONS } from '../domain/planner'
-import { distanceText, gainText, minutesFor } from '../domain/units'
-const props = defineProps<{ route: RouteCandidate; shown: RouteCandidate; selected: boolean; renaming: boolean; reversing: boolean; units: Units; pace: Record<Mode, number> }>()
-const emit = defineEmits<{ select: []; rename: []; commitRename: [name: string]; cancelRename: []; reverse: []; share: []; remove: [] }>()
+import type { Mode, RouteCandidate, Units } from '../domain/planner';
+import { MODE_ICONS } from '../domain/planner';
+import { distanceText, gainText, minutesFor } from '../domain/units';
+const props = defineProps<{ route: RouteCandidate; shown: RouteCandidate; selected: boolean; renaming: boolean; reversing: boolean; units: Units; pace: Record<Mode, number> }>();
+const emit = defineEmits<{ select: []; rename: []; commitRename: [name: string]; cancelRename: []; reverse: []; share: []; remove: [] }>();
 // The box is open from the moment `renaming` turns on until Enter, blur or Escape closes it. Only the first of those counts.
-const open = ref(false)
-const draft = ref('')
-watch(() => props.renaming, value => { open.value = value; if (value) draft.value = props.route.name }, { immediate: true })
+const open = ref(false);
+const draft = ref('');
+watch(() => props.renaming, value => { open.value = value; if (value) draft.value = props.route.name; }, { immediate: true });
 /** Focuses the rename box as it appears, selecting the name so typing replaces it. */
-const vFocus = { mounted: (element: HTMLInputElement) => { element.focus(); element.select() } }
+const vFocus = { mounted: (element: HTMLInputElement) => { element.focus(); element.select(); } };
 function commit() {
-  if (!open.value) return
-  open.value = false
-  emit('commitRename', draft.value)
+  if (!open.value) return;
+  open.value = false;
+  emit('commitRename', draft.value);
 }
 function cancel() {
-  if (!open.value) return
-  open.value = false
-  emit('cancelRename')
+  if (!open.value) return;
+  open.value = false;
+  emit('cancelRename');
 }
 </script>
 

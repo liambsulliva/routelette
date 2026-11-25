@@ -1,5 +1,5 @@
 /** Why the planner last changed the map. Each one decides whether the camera moves and whether lines draw in. */
-export type PresentationKind = 'generate' | 'selection' | 'restore' | 'reverse' | 'reshape' | 'saved' | 'shared'
+export type PresentationKind = 'generate' | 'selection' | 'restore' | 'reverse' | 'reshape' | 'saved' | 'shared';
 
 export interface PresentationOptions { animate: boolean; fit: boolean; reveal: boolean; deferAlternates: boolean }
 
@@ -13,5 +13,5 @@ export function presentationFor(presentation: string, reducedMotion: boolean): P
     fit: presentation === 'generate' || presentation === 'saved' || presentation === 'shared',
     reveal: ['generate', 'restore', 'reverse', 'saved', 'shared'].includes(presentation),
     deferAlternates: ['generate', 'restore'].includes(presentation),
-  }
+  };
 }

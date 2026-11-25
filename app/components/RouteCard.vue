@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import type { Mode, RouteCandidate, Units } from '../domain/planner'
-import { distanceText, gainText, minutesFor, PACE_LIMITS, paceFromInput, paceSuffix, paceText } from '../domain/units'
-const props = defineProps<{ route: RouteCandidate; selected: boolean; hovered: boolean; saved: boolean; units: Units; pace: Record<Mode, number> }>()
-const emit = defineEmits<{ select: [id: string, deliberate: boolean]; preview: [id: string]; save: [route: RouteCandidate]; reverse: []; pace: [mode: Mode, value: number] }>()
-const editingPace = ref(false)
-const paceValue = ref('')
+import type { Mode, RouteCandidate, Units } from '../domain/planner';
+import { distanceText, gainText, minutesFor, PACE_LIMITS, paceFromInput, paceSuffix, paceText } from '../domain/units';
+const props = defineProps<{ route: RouteCandidate; selected: boolean; hovered: boolean; saved: boolean; units: Units; pace: Record<Mode, number> }>();
+const emit = defineEmits<{ select: [id: string, deliberate: boolean]; preview: [id: string]; save: [route: RouteCandidate]; reverse: []; pace: [mode: Mode, value: number] }>();
+const editingPace = ref(false);
+const paceValue = ref('');
 /** Focuses the pace box as it opens, selecting the number so typing replaces it. */
-const vFocus = { mounted: (element: HTMLInputElement) => { element.focus(); element.select() } }
-function editPace() { paceValue.value = paceText(props.pace[props.route.mode], props.units); editingPace.value = true }
-function cancelPace() { editingPace.value = false }
+const vFocus = { mounted: (element: HTMLInputElement) => { element.focus(); element.select(); } };
+function editPace() { paceValue.value = paceText(props.pace[props.route.mode], props.units); editingPace.value = true; }
+function cancelPace() { editingPace.value = false; }
 function commitPace() {
   // Enter, blur and Escape can all reach here. Only the first one for an open edit counts.
-  if (!editingPace.value) return
-  editingPace.value = false
-  const value = paceFromInput(Number(paceValue.value), props.units)
+  if (!editingPace.value) return;
+  editingPace.value = false;
+  const value = paceFromInput(Number(paceValue.value), props.units);
   // An empty box reads as 0, which is below the minimum, so it keeps the current pace.
-  if (Number.isFinite(value) && value >= PACE_LIMITS.minimum && value <= PACE_LIMITS.maximum) emit('pace', props.route.mode, value)
+  if (Number.isFinite(value) && value >= PACE_LIMITS.minimum && value <= PACE_LIMITS.maximum) emit('pace', props.route.mode, value);
 }
 </script>
 

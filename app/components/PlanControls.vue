@@ -1,79 +1,79 @@
 <script setup lang="ts">
-import type { ElevationChoice, Mode, Place, PlanningSettings, Surface, Units } from '../domain/planner'
-import { MODE_ICONS } from '../domain/planner'
-import { clampToMode, elevationCaption, METERS_PER_FOOT } from '../domain/units'
-const props = defineProps<{ settings: PlanningSettings; units: Units; elevationAvailable: boolean; placing: 'start' | 'stop' | null; locating: boolean }>()
-const emit = defineEmits<{ change: [patch: Partial<PlanningSettings>]; locate: []; placement: [mode: 'start' | 'stop' | null] }>()
-const search = ref(''), results = ref<Place[]>([]), searchBusy = ref(false), searchError = ref(''), openSearch = ref(false), activeResult = ref(-1)
-const addingStop = ref(false), customGain = ref('')
-const searchInput = useTemplateRef<HTMLInputElement>('searchInput')
-let timer: ReturnType<typeof setTimeout> | undefined
-let searchRequest: AbortController | null = null
-let searchVersion = 0
-watch(() => props.settings.start?.label, label => { if (!addingStop.value) search.value = label ?? '' }, { immediate: true })
+import type { ElevationChoice, Mode, Place, PlanningSettings, Surface, Units } from '../domain/planner';
+import { MODE_ICONS } from '../domain/planner';
+import { clampToMode, elevationCaption, METERS_PER_FOOT } from '../domain/units';
+const props = defineProps<{ settings: PlanningSettings; units: Units; elevationAvailable: boolean; placing: 'start' | 'stop' | null; locating: boolean }>();
+const emit = defineEmits<{ change: [patch: Partial<PlanningSettings>]; locate: []; placement: [mode: 'start' | 'stop' | null] }>();
+const search = ref(''), results = ref<Place[]>([]), searchBusy = ref(false), searchError = ref(''), openSearch = ref(false), activeResult = ref(-1);
+const addingStop = ref(false), customGain = ref('');
+const searchInput = useTemplateRef<HTMLInputElement>('searchInput');
+let timer: ReturnType<typeof setTimeout> | undefined;
+let searchRequest: AbortController | null = null;
+let searchVersion = 0;
+watch(() => props.settings.start?.label, label => { if (!addingStop.value) search.value = label ?? ''; }, { immediate: true });
 const elevations: { value: ElevationChoice; label: string; icon: string }[] = [
   { value: 'any', label: 'Any', icon: 'ph:infinity' }, { value: 'flat', label: 'Flat', icon: 'ph:minus' },
   { value: 'hilly', label: 'Hilly', icon: 'ph:wave-sine' }, { value: 'steep', label: 'Steep', icon: 'ph:mountains' },
   { value: 'custom', label: 'Custom', icon: 'ph:sliders-horizontal' },
-]
+];
 const surfaces: { value: Surface; label: string; icon: string }[] = [
   { value: 'mixed', label: 'Mixed', icon: 'ph:shuffle' }, { value: 'paved', label: 'Paved', icon: 'ph:road-horizon' }, { value: 'trail', label: 'Trail', icon: 'ph:tree-evergreen' },
-]
-const caption = computed(() => elevationCaption(props.settings.elevation, props.settings.distanceMeters, props.units))
-function setMode(mode: Mode) { emit('change', { mode, distanceMeters: clampToMode(props.settings.distanceMeters, mode) }) }
+];
+const caption = computed(() => elevationCaption(props.settings.elevation, props.settings.distanceMeters, props.units));
+function setMode(mode: Mode) { emit('change', { mode, distanceMeters: clampToMode(props.settings.distanceMeters, mode) }); }
 function lookup() {
-  clearTimeout(timer); searchRequest?.abort(); const version = ++searchVersion
-  results.value = []; activeResult.value = -1; searchError.value = ''; openSearch.value = true
-  if (search.value.trim().length < 2) { searchBusy.value = false; return }
-  searchBusy.value = true
+  clearTimeout(timer); searchRequest?.abort(); const version = ++searchVersion;
+  results.value = []; activeResult.value = -1; searchError.value = ''; openSearch.value = true;
+  if (search.value.trim().length < 2) { searchBusy.value = false; return; }
+  searchBusy.value = true;
   timer = setTimeout(async () => {
-    const request = new AbortController(); searchRequest = request
+    const request = new AbortController(); searchRequest = request;
     try {
-      const places = await $fetch<Place[]>('/api/search', { query: { q: search.value }, signal: request.signal })
-      if (version === searchVersion) results.value = places
-    } catch { if (version === searchVersion && !request.signal.aborted) searchError.value = "Search isn't responding. Try again." }
-    finally { if (version === searchVersion) searchBusy.value = false }
-  }, 300)
+      const places = await $fetch<Place[]>('/api/search', { query: { q: search.value }, signal: request.signal });
+      if (version === searchVersion) results.value = places;
+    } catch { if (version === searchVersion && !request.signal.aborted) searchError.value = "Search isn't responding. Try again."; }
+    finally { if (version === searchVersion) searchBusy.value = false; }
+  }, 300);
 }
 function choose(place: Place) {
-  searchRequest?.abort(); ++searchVersion; openSearch.value = false; results.value = []
+  searchRequest?.abort(); ++searchVersion; openSearch.value = false; results.value = [];
   if (addingStop.value) {
-    emit('change', { stops: [...props.settings.stops, place] }); addingStop.value = false; search.value = props.settings.start?.label ?? ''
-  } else { search.value = place.label; emit('change', { start: place }) }
-  emit('placement', null)
+    emit('change', { stops: [...props.settings.stops, place] }); addingStop.value = false; search.value = props.settings.start?.label ?? '';
+  } else { search.value = place.label; emit('change', { start: place }); }
+  emit('placement', null);
 }
-async function addStop() { addingStop.value = true; search.value = ''; openSearch.value = false; emit('placement', 'stop'); await nextTick(); searchInput.value?.focus() }
-function closeSearch() { openSearch.value = false; addingStop.value = false; search.value = props.settings.start?.label ?? ''; emit('placement', null) }
+async function addStop() { addingStop.value = true; search.value = ''; openSearch.value = false; emit('placement', 'stop'); await nextTick(); searchInput.value?.focus(); }
+function closeSearch() { openSearch.value = false; addingStop.value = false; search.value = props.settings.start?.label ?? ''; emit('placement', null); }
 function keyboard(event: KeyboardEvent) {
-  if (event.key === 'Escape') { closeSearch(); return }
-  if (event.key === 'ArrowDown') { event.preventDefault(); activeResult.value = Math.min(activeResult.value + 1, results.value.length - 1) }
-  if (event.key === 'ArrowUp') { event.preventDefault(); activeResult.value = Math.max(0, activeResult.value - 1) }
-  if (event.key === 'Enter' && results.value[activeResult.value]) { event.preventDefault(); choose(results.value[activeResult.value]!) }
+  if (event.key === 'Escape') { closeSearch(); return; }
+  if (event.key === 'ArrowDown') { event.preventDefault(); activeResult.value = Math.min(activeResult.value + 1, results.value.length - 1); }
+  if (event.key === 'ArrowUp') { event.preventDefault(); activeResult.value = Math.max(0, activeResult.value - 1); }
+  if (event.key === 'Enter' && results.value[activeResult.value]) { event.preventDefault(); choose(results.value[activeResult.value]!); }
 }
-function removeStop(id: string) { emit('change', { stops: props.settings.stops.filter(stop => stop.id !== id) }) }
-let draggedStop = -1
+function removeStop(id: string) { emit('change', { stops: props.settings.stops.filter(stop => stop.id !== id) }); }
+let draggedStop = -1;
 function startDrag(event: DragEvent, index: number) {
-  draggedStop = index
-  event.dataTransfer?.setData('text/plain', String(index))
-  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+  draggedStop = index;
+  event.dataTransfer?.setData('text/plain', String(index));
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
 }
-function allowDrop(event: DragEvent) { if (event.dataTransfer) event.dataTransfer.dropEffect = 'move' }
+function allowDrop(event: DragEvent) { if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'; }
 function dropStop(index: number) {
-  if (draggedStop < 0 || draggedStop === index) { draggedStop = -1; return }
-  const stops = [...props.settings.stops]
-  const [stop] = stops.splice(draggedStop, 1)
-  draggedStop = -1
-  if (stop) emit('change', { stops, orderLocked: true })
+  if (draggedStop < 0 || draggedStop === index) { draggedStop = -1; return; }
+  const stops = [...props.settings.stops];
+  const [stop] = stops.splice(draggedStop, 1);
+  draggedStop = -1;
+  if (stop) emit('change', { stops, orderLocked: true });
 }
 function chooseElevation(value: ElevationChoice) {
-  emit('change', { elevation: value, ...(value === 'custom' ? { customGainMeters: props.settings.customGainMeters ?? 100 } : {}) })
-  customGain.value = String(Math.round((props.settings.customGainMeters ?? 100) / (props.units === 'mi' ? METERS_PER_FOOT : 1)))
+  emit('change', { elevation: value, ...(value === 'custom' ? { customGainMeters: props.settings.customGainMeters ?? 100 } : {}) });
+  customGain.value = String(Math.round((props.settings.customGainMeters ?? 100) / (props.units === 'mi' ? METERS_PER_FOOT : 1)));
 }
 function gainCommit() {
-  const value = Number(customGain.value)
-  if (Number.isFinite(value) && value >= 0) emit('change', { customGainMeters: value * (props.units === 'mi' ? METERS_PER_FOOT : 1) })
+  const value = Number(customGain.value);
+  if (Number.isFinite(value) && value >= 0) emit('change', { customGainMeters: value * (props.units === 'mi' ? METERS_PER_FOOT : 1) });
 }
-onBeforeUnmount(() => { clearTimeout(timer); searchRequest?.abort() })
+onBeforeUnmount(() => { clearTimeout(timer); searchRequest?.abort(); });
 </script>
 
 <template>

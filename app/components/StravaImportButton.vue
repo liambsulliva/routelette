@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ dark: boolean; state?: 'idle' | 'loading' | 'done' }>(), { state: 'idle' })
+withDefaults(defineProps<{ dark: boolean; state?: 'idle' | 'loading' | 'done' }>(), { state: 'idle' });
 </script>
 
 <template>

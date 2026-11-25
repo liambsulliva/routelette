@@ -1,33 +1,33 @@
 <script setup lang="ts">
-import type { Mode, Units } from '../domain/planner'
-import { commitDistance, distanceLimits, fromDistance, toDistance } from '../domain/units'
-const props = defineProps<{ meters: number; mode: Mode; units: Units }>()
-const emit = defineEmits<{ change: [meters: number] }>()
-const editing = ref(false), text = ref(''), draft = ref<number | null>(null)
-const field = useTemplateRef<HTMLInputElement>('field')
-const limits = computed(() => distanceLimits(props.mode, props.units))
-const value = computed(() => draft.value ?? toDistance(props.meters, props.units))
-const percentage = computed(() => Math.min(100, Math.max(0, (value.value - limits.value.minimum) / (limits.value.maximum - limits.value.minimum) * 100)))
+import type { Mode, Units } from '../domain/planner';
+import { commitDistance, distanceLimits, fromDistance, toDistance } from '../domain/units';
+const props = defineProps<{ meters: number; mode: Mode; units: Units }>();
+const emit = defineEmits<{ change: [meters: number] }>();
+const editing = ref(false), text = ref(''), draft = ref<number | null>(null);
+const field = useTemplateRef<HTMLInputElement>('field');
+const limits = computed(() => distanceLimits(props.mode, props.units));
+const value = computed(() => draft.value ?? toDistance(props.meters, props.units));
+const percentage = computed(() => Math.min(100, Math.max(0, (value.value - limits.value.minimum) / (limits.value.maximum - limits.value.minimum) * 100)));
 async function edit() {
-  if (editing.value) return
-  text.value = value.value.toFixed(1)
-  editing.value = true
-  await nextTick()
-  field.value?.focus()
-  field.value?.select()
+  if (editing.value) return;
+  text.value = value.value.toFixed(1);
+  editing.value = true;
+  await nextTick();
+  field.value?.focus();
+  field.value?.select();
 }
 function commit() {
-  if (!editing.value) return
-  editing.value = false
-  const meters = commitDistance(text.value, props.mode, props.units, props.meters)
-  if (meters !== props.meters) emit('change', meters)
+  if (!editing.value) return;
+  editing.value = false;
+  const meters = commitDistance(text.value, props.mode, props.units, props.meters);
+  if (meters !== props.meters) emit('change', meters);
 }
-function cancel() { editing.value = false; field.value?.blur() }
+function cancel() { editing.value = false; field.value?.blur(); }
 function release(event: Event) {
-  const next = Number((event.target as HTMLInputElement).value)
-  draft.value = null
-  const meters = fromDistance(next, props.units)
-  if (Math.abs(meters - props.meters) > 0.01) emit('change', meters)
+  const next = Number((event.target as HTMLInputElement).value);
+  draft.value = null;
+  const meters = fromDistance(next, props.units);
+  if (Math.abs(meters - props.meters) > 0.01) emit('change', meters);
 }
 </script>
 

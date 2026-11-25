@@ -10,15 +10,15 @@
  * Coordinates are integers in units of 1e-7 degrees. Node ids are global within a region and snapshot version.
  */
 
-export const TILE_MAGIC = 0x544c5452 // "RTLT"
-export const TILE_FORMAT_VERSION = 1
-export const COORDINATE_SCALE = 1e7
+export const TILE_MAGIC = 0x544c5452; // "RTLT"
+export const TILE_FORMAT_VERSION = 1;
+export const COORDINATE_SCALE = 1e7;
 
 export const HIGHWAYS = [
   'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'unclassified', 'residential',
   'living_street', 'service', 'road', 'track', 'path', 'footway', 'pedestrian', 'cycleway', 'steps', 'bridleway', 'busway', 'other',
-] as const
-export type Highway = typeof HIGHWAYS[number]
+] as const;
+export type Highway = typeof HIGHWAYS[number];
 
 /** Way flags, derived from OSM tags at build time. */
 export const WAY = {
@@ -41,102 +41,102 @@ export const WAY = {
   MINOR_SERVICE: 1 << 16,
   TRAIL: 1 << 17,
   SIDEWALK_WAY: 1 << 18,
-} as const
+} as const;
 
 /** Node flags for barriers. */
 export const NODE = {
   FOOT_BLOCKED: 1 << 0,
   BIKE_BLOCKED: 1 << 1,
-} as const
+} as const;
 
 /** A turn restriction that applies to bicycles, keyed by the junction where the restricted turn happens. */
 export interface TileRestriction {
   /** 0 means "no turn", 1 means "only this turn". */
-  kind: 0 | 1
+  kind: 0 | 1;
   /** Global id of the junction node where the turn happens. */
-  node: number
+  node: number;
   /** OSM id of the way the turn leaves from. For via-way restrictions this is the last via way. */
-  from: number
+  from: number;
   /** OSM ids of the ways travelled before `from`, nearest first. Empty for via-node restrictions. */
-  before: number[]
+  before: number[];
   /** OSM id of the way the turn enters. */
-  to: number
+  to: number;
 }
 
 export interface TileWay { osmId: number; flags: number; highway: number; name: number }
 
 export interface TileMetadata {
-  region: string
-  tile: string
-  names: string[]
-  ways: Array<[osmId: number, flags: number, highway: number, name: number]>
-  restrictions: TileRestriction[]
+  region: string;
+  tile: string;
+  names: string[];
+  ways: Array<[osmId: number, flags: number, highway: number, name: number]>;
+  restrictions: TileRestriction[];
 }
 
 export interface DecodedTile {
-  meta: TileMetadata
-  nodeIds: Uint32Array
-  nodeLon: Int32Array
-  nodeLat: Int32Array
-  nodeFlags: Uint32Array
-  edgeA: Uint32Array
-  edgeB: Uint32Array
-  edgeWay: Uint32Array
-  edgeLength: Float32Array
-  edgeGeometryStart: Uint32Array
-  geometry: Int32Array
+  meta: TileMetadata;
+  nodeIds: Uint32Array;
+  nodeLon: Int32Array;
+  nodeLat: Int32Array;
+  nodeFlags: Uint32Array;
+  edgeA: Uint32Array;
+  edgeB: Uint32Array;
+  edgeWay: Uint32Array;
+  edgeLength: Float32Array;
+  edgeGeometryStart: Uint32Array;
+  geometry: Int32Array;
 }
 
 export interface TileInput {
-  meta: TileMetadata
-  nodes: Array<{ id: number; lon: number; lat: number; flags: number }>
-  edges: Array<{ a: number; b: number; way: number; length: number; geometry: Array<[number, number]> }>
+  meta: TileMetadata;
+  nodes: Array<{ id: number; lon: number; lat: number; flags: number }>;
+  edges: Array<{ a: number; b: number; way: number; length: number; geometry: Array<[number, number]> }>;
 }
 
 export function encodeTile(input: TileInput): Uint8Array {
-  const json = new TextEncoder().encode(JSON.stringify(input.meta))
-  const jsonPadded = Math.ceil(json.length / 4) * 4
-  const n = input.nodes.length, e = input.edges.length
-  const points = input.edges.reduce((sum, edge) => sum + edge.geometry.length, 0)
-  const words = 6 + jsonPadded / 4 + n * 4 + e * 4 + (e + 1) + points * 2
-  const buffer = new ArrayBuffer(words * 4)
-  const header = new Uint32Array(buffer, 0, 6)
-  header.set([TILE_MAGIC, TILE_FORMAT_VERSION, n, e, points, json.length])
-  new Uint8Array(buffer, 24, json.length).set(json)
-  let offset = 24 + jsonPadded
-  const u32 = (length: number) => { const view = new Uint32Array(buffer, offset, length); offset += length * 4; return view }
-  const i32 = (length: number) => { const view = new Int32Array(buffer, offset, length); offset += length * 4; return view }
-  const f32 = (length: number) => { const view = new Float32Array(buffer, offset, length); offset += length * 4; return view }
-  const ids = u32(n), lon = i32(n), lat = i32(n), flags = u32(n)
-  input.nodes.forEach((node, i) => { ids[i] = node.id; lon[i] = Math.round(node.lon * COORDINATE_SCALE); lat[i] = Math.round(node.lat * COORDINATE_SCALE); flags[i] = node.flags })
-  const a = u32(e), b = u32(e), way = u32(e), length = f32(e), start = u32(e + 1)
-  const geometry = i32(points * 2)
-  let cursor = 0
+  const json = new TextEncoder().encode(JSON.stringify(input.meta));
+  const jsonPadded = Math.ceil(json.length / 4) * 4;
+  const n = input.nodes.length, e = input.edges.length;
+  const points = input.edges.reduce((sum, edge) => sum + edge.geometry.length, 0);
+  const words = 6 + jsonPadded / 4 + n * 4 + e * 4 + (e + 1) + points * 2;
+  const buffer = new ArrayBuffer(words * 4);
+  const header = new Uint32Array(buffer, 0, 6);
+  header.set([TILE_MAGIC, TILE_FORMAT_VERSION, n, e, points, json.length]);
+  new Uint8Array(buffer, 24, json.length).set(json);
+  let offset = 24 + jsonPadded;
+  const u32 = (length: number) => { const view = new Uint32Array(buffer, offset, length); offset += length * 4; return view; };
+  const i32 = (length: number) => { const view = new Int32Array(buffer, offset, length); offset += length * 4; return view; };
+  const f32 = (length: number) => { const view = new Float32Array(buffer, offset, length); offset += length * 4; return view; };
+  const ids = u32(n), lon = i32(n), lat = i32(n), flags = u32(n);
+  input.nodes.forEach((node, i) => { ids[i] = node.id; lon[i] = Math.round(node.lon * COORDINATE_SCALE); lat[i] = Math.round(node.lat * COORDINATE_SCALE); flags[i] = node.flags; });
+  const a = u32(e), b = u32(e), way = u32(e), length = f32(e), start = u32(e + 1);
+  const geometry = i32(points * 2);
+  let cursor = 0;
   input.edges.forEach((edge, i) => {
-    a[i] = edge.a; b[i] = edge.b; way[i] = edge.way; length[i] = edge.length; start[i] = cursor
-    for (const [x, y] of edge.geometry) { geometry[cursor * 2] = Math.round(x * COORDINATE_SCALE); geometry[cursor * 2 + 1] = Math.round(y * COORDINATE_SCALE); cursor++ }
-  })
-  start[e] = cursor
-  return new Uint8Array(buffer)
+    a[i] = edge.a; b[i] = edge.b; way[i] = edge.way; length[i] = edge.length; start[i] = cursor;
+    for (const [x, y] of edge.geometry) { geometry[cursor * 2] = Math.round(x * COORDINATE_SCALE); geometry[cursor * 2 + 1] = Math.round(y * COORDINATE_SCALE); cursor++; }
+  });
+  start[e] = cursor;
+  return new Uint8Array(buffer);
 }
 
 export function decodeTile(data: ArrayBuffer): DecodedTile {
-  const header = new Uint32Array(data, 0, 6)
-  if (header[0] !== TILE_MAGIC || header[1] !== TILE_FORMAT_VERSION) throw new Error('Routing tile format is not supported.')
-  const n = header[2]!, e = header[3]!, points = header[4]!, jsonLength = header[5]!
-  const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(data, 24, jsonLength))) as TileMetadata
-  let offset = 24 + Math.ceil(jsonLength / 4) * 4
-  const u32 = (length: number) => { const view = new Uint32Array(data, offset, length); offset += length * 4; return view }
-  const i32 = (length: number) => { const view = new Int32Array(data, offset, length); offset += length * 4; return view }
-  const f32 = (length: number) => { const view = new Float32Array(data, offset, length); offset += length * 4; return view }
+  const header = new Uint32Array(data, 0, 6);
+  if (header[0] !== TILE_MAGIC || header[1] !== TILE_FORMAT_VERSION) throw new Error('Routing tile format is not supported.');
+  const n = header[2]!, e = header[3]!, points = header[4]!, jsonLength = header[5]!;
+  const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(data, 24, jsonLength))) as TileMetadata;
+  let offset = 24 + Math.ceil(jsonLength / 4) * 4;
+  const u32 = (length: number) => { const view = new Uint32Array(data, offset, length); offset += length * 4; return view; };
+  const i32 = (length: number) => { const view = new Int32Array(data, offset, length); offset += length * 4; return view; };
+  const f32 = (length: number) => { const view = new Float32Array(data, offset, length); offset += length * 4; return view; };
   return {
     meta,
     nodeIds: u32(n), nodeLon: i32(n), nodeLat: i32(n), nodeFlags: u32(n),
     edgeA: u32(e), edgeB: u32(e), edgeWay: u32(e), edgeLength: f32(e), edgeGeometryStart: u32(e + 1),
     geometry: i32(points * 2),
-  }
+  };
 }
 
 export function tileKey(region: string, lon: number, lat: number, degrees: number): string {
-  return `${region}-${Math.floor(lon / degrees)}-${Math.floor(lat / degrees)}`
+  return `${region}-${Math.floor(lon / degrees)}-${Math.floor(lat / degrees)}`;
 }
